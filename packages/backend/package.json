@@ -34,6 +34,9 @@
     "ws": "^8.18.0",
     "zod": "^3.23.0"
   },
+  "optionalDependencies": {
+    "@discordjs/opus": "^0.10.0"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
