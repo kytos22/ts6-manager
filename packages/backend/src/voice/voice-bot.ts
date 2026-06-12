@@ -7,8 +7,7 @@ import { StreamSignaling, type ActiveStream, type SignalingMessage } from './str
 import { SidecarClient } from './streaming/sidecar-client.js';
 import { SidecarProcess, type SidecarConfig } from './streaming/sidecar-process.js';
 import { STREAM_PRESETS, DEFAULT_PRESET, type VideoViewerInfo, type VideoStreamStatus } from './streaming/types.js';
-import { getCookieArgs } from './audio/youtube.js';
-import { spawn } from 'child_process';
+import { getCookieArgs, runYtDlp } from './audio/youtube.js';
 
 interface ResolvedVideoSource {
   url: string;
@@ -17,81 +16,70 @@ interface ResolvedVideoSource {
   audioHttpHeaders?: Record<string, string>;
 }
 
-/** Resolve a YouTube/yt-dlp-compatible URL to a direct stream URL */
-function resolveVideoUrl(url: string, maxHeight: number = 720): Promise<ResolvedVideoSource> {
+/** Resolve a YouTube/yt-dlp-compatible URL to direct video/audio sources. */
+async function resolveVideoUrl(url: string, maxHeight: number = 720): Promise<ResolvedVideoSource> {
   // Only resolve YouTube and other yt-dlp-supported sites
   if (!url.includes('youtube.com/') && !url.includes('youtu.be/') && !url.includes('twitch.tv/')) {
-    return Promise.resolve({ url, httpHeaders: {} });
+    return { url, httpHeaders: {} };
   }
 
-  return new Promise((resolve, reject) => {
-    // Prefer DASH video+audio because YouTube rarely exposes a combined 720p URL.
-    const formatFilter = `bestvideo[height<=${maxHeight}][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[height<=${maxHeight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${maxHeight}]+bestaudio/best[height<=${maxHeight}]/best`;
-    const proc = spawn('yt-dlp', [
+  // Prefer DASH video+audio because YouTube rarely exposes a combined 720p URL.
+  // The shared runner supplies hard timeouts, complete diagnostic logging and
+  // cookie handling while keeping stream startup at normal CPU priority.
+  const formatFilter = `bestvideo[height<=${maxHeight}][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[height<=${maxHeight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${maxHeight}]+bestaudio/best[height<=${maxHeight}]/best`;
+  const stdout = await runYtDlp(
+    [
       ...getCookieArgs(),
       '-f', formatFilter,
       '--no-playlist',
       '--dump-single-json',
       url,
-    ], { shell: false });
+    ],
+    60_000,
+    { lowPriority: false },
+  );
 
-    let stdout = '';
-    let stderr = '';
-    proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-    proc.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+  try {
+    const info = JSON.parse(stdout);
+    const mergedDownload = Array.isArray(info.requested_downloads)
+      ? info.requested_downloads[0]
+      : undefined;
+    const downloads = Array.isArray(mergedDownload?.requested_formats) && mergedDownload.requested_formats.length > 0
+      ? mergedDownload.requested_formats
+      : Array.isArray(info.requested_formats) && info.requested_formats.length > 0
+        ? info.requested_formats
+        : Array.isArray(info.requested_downloads) && info.requested_downloads.length > 0
+          ? info.requested_downloads
+          : [info];
+    const video = downloads.find((item: any) => item?.vcodec && item.vcodec !== 'none') || downloads[0];
+    const audio = downloads.find((item: any) => item !== video && item?.acodec && item.acodec !== 'none');
+    const directUrl = video?.url || info.url;
+    if (!directUrl || typeof directUrl !== 'string') {
+      throw new Error('yt-dlp returned no URL');
+    }
 
-    proc.on('close', (code) => {
-      if (code !== 0) {
-        return reject(new Error(`yt-dlp failed (code ${code}): ${stderr.slice(0, 200)}`));
-      }
-
-      try {
-        const info = JSON.parse(stdout);
-        const mergedDownload = Array.isArray(info.requested_downloads)
-          ? info.requested_downloads[0]
-          : undefined;
-        const downloads = Array.isArray(mergedDownload?.requested_formats) && mergedDownload.requested_formats.length > 0
-          ? mergedDownload.requested_formats
-          : Array.isArray(info.requested_formats) && info.requested_formats.length > 0
-            ? info.requested_formats
-            : Array.isArray(info.requested_downloads) && info.requested_downloads.length > 0
-              ? info.requested_downloads
-              : [info];
-        const video = downloads.find((item: any) => item?.vcodec && item.vcodec !== 'none') || downloads[0];
-        const audio = downloads.find((item: any) => item !== video && item?.acodec && item.acodec !== 'none');
-        const directUrl = video?.url || info.url;
-        if (!directUrl || typeof directUrl !== 'string') {
-          return reject(new Error('yt-dlp returned no URL'));
+    const cleanHeaders = (rawHeaders: any): Record<string, string> => {
+      const cleaned: Record<string, string> = {};
+      for (const [key, value] of Object.entries(rawHeaders || {})) {
+        if (typeof value === 'string' && !key.includes('\r') && !key.includes('\n') &&
+            !value.includes('\r') && !value.includes('\n')) {
+          cleaned[key] = value;
         }
-
-        const cleanHeaders = (rawHeaders: any): Record<string, string> => {
-          const cleaned: Record<string, string> = {};
-          for (const [key, value] of Object.entries(rawHeaders || {})) {
-            if (typeof value === 'string' && !key.includes('\r') && !key.includes('\n') &&
-                !value.includes('\r') && !value.includes('\n')) {
-              cleaned[key] = value;
-            }
-          }
-          return cleaned;
-        };
-
-        const httpHeaders = cleanHeaders(video?.http_headers || info.http_headers);
-        const audioUrl = typeof audio?.url === 'string' ? audio.url : undefined;
-        const audioHttpHeaders = audioUrl
-          ? cleanHeaders(audio.http_headers || info.http_headers)
-          : undefined;
-
-        console.log(`[VideoResolve] Resolved: ${url.substring(0, 60)}... video+${audioUrl ? 'separate audio' : 'embedded audio'}`);
-        resolve({ url: directUrl, httpHeaders, audioUrl, audioHttpHeaders });
-      } catch (err) {
-        reject(new Error(`Failed to parse yt-dlp stream metadata: ${err instanceof Error ? err.message : String(err)}`));
       }
-    });
+      return cleaned;
+    };
 
-    proc.on('error', (err) => {
-      reject(new Error(`yt-dlp not found: ${err.message}`));
-    });
-  });
+    const httpHeaders = cleanHeaders(video?.http_headers || info.http_headers);
+    const audioUrl = typeof audio?.url === 'string' ? audio.url : undefined;
+    const audioHttpHeaders = audioUrl
+      ? cleanHeaders(audio.http_headers || info.http_headers)
+      : undefined;
+
+    console.log(`[VideoResolve] Resolved: ${url.substring(0, 60)}... video+${audioUrl ? 'separate audio' : 'embedded audio'}`);
+    return { url: directUrl, httpHeaders, audioUrl, audioHttpHeaders };
+  } catch (err) {
+    throw new Error(`Failed to parse yt-dlp stream metadata: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export type VoiceBotStatus = 'stopped' | 'starting' | 'connected' | 'playing' | 'paused' | 'error';
