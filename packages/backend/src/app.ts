@@ -33,6 +33,7 @@ import { widgetRoutes } from './routes/widget.routes.js';
 import { setupRoutes } from './routes/setup.routes.js';
 import { settingsRoutes } from './routes/settings.routes.js';
 import { journalRoutes } from './routes/journal.routes.js';
+import { discordRoutes } from './routes/discord.routes.js';
 import { requireServerAccess } from './middleware/server-access.js';
 import { auditAdminActions } from './middleware/audit.js';
 import { operationsRoutes } from './routes/operations.routes.js';
@@ -109,6 +110,7 @@ export function createApp(): Express {
   app.use('/api/widgets', widgetRoutes);
   app.use('/api/settings', settingsRoutes);
   app.use('/api/journal', journalRoutes);
+  app.use('/api/discord', discordRoutes);
 
   // Error handler (must be last)
   app.use(errorHandler);

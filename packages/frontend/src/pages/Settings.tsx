@@ -5,6 +5,8 @@ import { authApi } from '@/api/auth.api';
 import { serversApi } from '@/api/servers.api';
 import { settingsApi } from '@/api/settings.api';
 import { journalApi } from '@/api/journal.api';
+import { discordApi, type DiscordSettings } from '@/api/discord.api';
+import { musicBotsApi } from '@/api/music.api';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
 import { PageLoader } from '@/components/shared/LoadingSpinner';
@@ -18,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { Settings as SettingsIcon, Users, Server, Plus, Trash2, Pencil, TestTube, Check, X, Lock, KeyRound, Youtube, Upload, FileText, Monitor } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Server, Plus, Trash2, Pencil, TestTube, Check, X, Lock, KeyRound, Youtube, Upload, FileText, Monitor, MessagesSquare } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Settings() {
@@ -35,6 +37,7 @@ export default function Settings() {
           <TabsTrigger value="account"><Lock className="h-3.5 w-3.5 mr-1" /> Account</TabsTrigger>
           {isAdmin && <TabsTrigger value="users"><Users className="h-3.5 w-3.5 mr-1" /> Users</TabsTrigger>}
           {isAdmin && <TabsTrigger value="youtube"><Youtube className="h-3.5 w-3.5 mr-1" /> YouTube</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="discord"><MessagesSquare className="h-3.5 w-3.5 mr-1" /> Discord</TabsTrigger>}
         </TabsList>
 
         {isAdmin && (
@@ -56,6 +59,12 @@ export default function Settings() {
         {isAdmin && (
           <TabsContent value="youtube" className="mt-4">
             <YouTubeTab />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="discord" className="mt-4">
+            <DiscordTab />
           </TabsContent>
         )}
       </Tabs>
@@ -908,6 +917,124 @@ function JournalRetentionCard() {
         <p className="text-[10px] text-muted-foreground">Entries older than this are purged daily. Set to 0 to keep everything.</p>
         <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
           {save.isPending ? 'Saving...' : 'Save'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DiscordTab() {
+  const qc = useQueryClient();
+  const { data: settings, isLoading } = useQuery({ queryKey: ['discord-settings'], queryFn: discordApi.settings });
+  const { data: status } = useQuery({
+    queryKey: ['discord-status'],
+    queryFn: discordApi.status,
+    refetchInterval: 10_000,
+  });
+  const { data: channels = [] } = useQuery({
+    queryKey: ['discord-channels'],
+    queryFn: discordApi.channels,
+    enabled: !!status?.running,
+  });
+  const { data: bots } = useQuery({ queryKey: ['music-bots'], queryFn: musicBotsApi.list });
+  const { data: servers } = useQuery({ queryKey: ['servers'], queryFn: serversApi.list });
+  const [form, setForm] = useState<Partial<DiscordSettings> & { botToken?: string }>({});
+
+  useEffect(() => {
+    if (settings) setForm({ ...settings, botToken: '' });
+  }, [settings]);
+
+  const save = useMutation({
+    mutationFn: () => discordApi.updateSettings({ ...form, botToken: form.botToken || undefined }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ['discord-settings'] });
+      qc.invalidateQueries({ queryKey: ['discord-status'] });
+      qc.invalidateQueries({ queryKey: ['discord-channels'] });
+      if (result?.status?.error) toast.error(`Saved, but: ${result.status.error}`);
+      else toast.success('Discord settings saved');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to save Discord settings'),
+  });
+
+  if (isLoading || !settings) return <PageLoader />;
+
+  const botList = Array.isArray(bots) ? bots : [];
+  const serverList = Array.isArray(servers) ? servers : [];
+  const channelOptions = Array.isArray(channels) ? channels : [];
+
+  const channelField = (label: string, key: 'notificationsChannelId' | 'statsChannelId') => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      {channelOptions.length ? (
+        <Select value={form[key] || 'none'} onValueChange={(value) => setForm((current) => ({ ...current, [key]: value === 'none' ? null : value }))}>
+          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Disabled</SelectItem>
+            {channelOptions.map((channel) => <SelectItem key={channel.id} value={channel.id}>{channel.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input className="h-8 text-xs" placeholder="Discord channel ID"
+          value={form[key] || ''} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value || null }))} />
+      )}
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-sm">Discord integration</CardTitle>
+        {status?.running
+          ? <Badge className="bg-emerald-600">Connected{status.guildName ? ` · ${status.guildName}` : ''}</Badge>
+          : status?.enabled
+            ? <Badge variant="destructive">{status.error ? 'Error' : 'Connecting'}</Badge>
+            : <Badge variant="outline">Disabled</Badge>}
+      </CardHeader>
+      <CardContent className="max-w-xl space-y-4">
+        {status?.error && <p className="text-xs text-destructive">{status.error}</p>}
+        {(status?.warnings || []).map((warning) => <p key={warning} className="text-xs text-amber-500">{warning}</p>)}
+
+        <div className="flex items-center gap-2">
+          <Switch checked={!!form.enabled} onCheckedChange={(enabled) => setForm((current) => ({ ...current, enabled }))} />
+          <Label className="text-xs">Enable Discord bot</Label>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Bot token</Label>
+          <Input className="h-8 text-xs" type="password"
+            placeholder={settings.hasToken ? 'Unchanged — enter a new token to replace it' : 'Discord bot token'}
+            value={form.botToken || ''} onChange={(event) => setForm((current) => ({ ...current, botToken: event.target.value }))} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Discord server ID</Label>
+          <Input className="h-8 text-xs" value={form.guildId || ''}
+            onChange={(event) => setForm((current) => ({ ...current, guildId: event.target.value || null }))} />
+        </div>
+        {channelField('Notifications channel', 'notificationsChannelId')}
+        {channelField('Live statistics channel', 'statsChannelId')}
+        <div className="flex items-center gap-2">
+          <Switch checked={!!form.statsLiveEnabled} onCheckedChange={(statsLiveEnabled) => setForm((current) => ({ ...current, statsLiveEnabled }))} />
+          <Label className="text-xs">Update the statistics message every minute</Label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs">TeamSpeak connection</Label>
+            <Select value={form.serverConfigId ? String(form.serverConfigId) : 'none'}
+              onValueChange={(value) => setForm((current) => ({ ...current, serverConfigId: value === 'none' ? null : Number(value) }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="none">None</SelectItem>{serverList.map((server: any) => <SelectItem key={server.id} value={String(server.id)}>{server.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Default music bot</Label>
+            <Select value={form.defaultMusicBotId ? String(form.defaultMusicBotId) : 'none'}
+              onValueChange={(value) => setForm((current) => ({ ...current, defaultMusicBotId: value === 'none' ? null : Number(value) }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="none">None</SelectItem>{botList.map((bot: any) => <SelectItem key={bot.id} value={String(bot.id)}>{bot.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? 'Saving and reconnecting...' : 'Save Discord settings'}
         </Button>
       </CardContent>
     </Card>
