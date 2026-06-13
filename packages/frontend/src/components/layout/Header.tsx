@@ -3,15 +3,18 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { ServerSelector } from './ServerSelector';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
 import { useLogout } from '@/hooks/use-auth';
+import { useTranslation } from 'react-i18next';
 
 export function Header() {
   const { user } = useAuthStore();
   const { uiScale, setUiScale } = useUiStore();
   const logout = useLogout();
+  const { t } = useTranslation();
 
   return (
     <header className="flex items-center justify-between h-14 px-5 border-b border-border bg-card/50 backdrop-blur-sm">
@@ -30,6 +33,7 @@ export function Header() {
             <SelectItem value="1.4">140%</SelectItem>
           </SelectContent>
         </Select>
+        <LanguageSwitcher />
         <ThemeToggle />
 
         <DropdownMenu>
@@ -49,7 +53,7 @@ export function Header() {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <span>{t('nav.logout')}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
