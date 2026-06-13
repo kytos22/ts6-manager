@@ -62,7 +62,7 @@ userRoutes.get('/', async (req: Request, res: Response, next) => {
     const users = await prisma.user.findMany({
       select: {
         id: true, username: true, displayName: true, role: true, enabled: true,
-        createdAt: true, lastLoginAt: true,
+        createdAt: true, lastLoginAt: true, mfaEnabled: true, mfaRequired: true,
         serverAccess: { select: { serverConfigId: true } },
       },
       orderBy: { id: 'asc' },
@@ -116,6 +116,16 @@ userRoutes.put('/:userId', async (req: Request, res: Response, next) => {
       const pwError = validatePassword(req.body.password, await loadPasswordPolicy(prisma));
       if (pwError) throw new AppError(400, pwError);
       data.passwordHash = await bcrypt.hash(req.body.password, 12);
+    }
+    // Admin MFA controls
+    if (req.body.mfaRequired !== undefined) data.mfaRequired = !!req.body.mfaRequired;
+    if (req.body.resetMfa) {
+      // Lost device: clear the user's MFA so they (re-)enroll. If still
+      // required, they're forced to set it up again at next login.
+      data.mfaEnabled = false;
+      data.mfaSecret = null;
+      data.mfaPendingSecret = null;
+      data.mfaRecoveryCodes = null;
     }
 
     const removesOwnAdminAccess = id === req.user!.id
