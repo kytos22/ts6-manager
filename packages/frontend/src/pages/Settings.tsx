@@ -374,6 +374,8 @@ function UsersTab() {
 
   return (
     <div className="space-y-4">
+      <PasswordPolicyCard />
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">Manage webapp users and roles</p>
         <Button size="sm" onClick={() => setShowAdd(true)}><Plus className="h-4 w-4 mr-1" /> Add User</Button>
@@ -718,5 +720,54 @@ function YouTubeTab() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function PasswordPolicyCard() {
+  const qc = useQueryClient();
+  const { data: policy } = useQuery({ queryKey: ['password-policy'], queryFn: usersApi.passwordPolicy });
+  const [minLength, setMinLength] = useState(12);
+  const [requireComplexity, setRequireComplexity] = useState(true);
+
+  useEffect(() => {
+    if (policy) {
+      setMinLength(policy.minLength);
+      setRequireComplexity(policy.requireComplexity);
+    }
+  }, [policy]);
+
+  const save = useMutation({
+    mutationFn: () => usersApi.updatePasswordPolicy({ minLength, requireComplexity }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['password-policy'] });
+      toast.success('Password policy saved');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to save'),
+  });
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-sm">Password policy</CardTitle></CardHeader>
+      <CardContent className="max-w-xl space-y-3">
+        <div className="flex items-center gap-3">
+          <Label className="w-40 text-xs">Minimum length</Label>
+          <Input className="h-8 w-24 text-xs" type="number" min={1} max={128} value={minLength}
+            onChange={(e) => setMinLength(parseInt(e.target.value) || 1)} />
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch checked={requireComplexity} onCheckedChange={setRequireComplexity} />
+          <Label className="text-xs font-normal">
+            Require a strong password
+            <span className="text-muted-foreground"> (uppercase, lowercase, number and special character)</span>
+          </Label>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Applied when creating users, changing a password and resetting one as administrator.
+        </p>
+        <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? 'Saving...' : 'Save policy'}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

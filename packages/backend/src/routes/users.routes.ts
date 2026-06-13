@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { requireRole } from '../middleware/rbac.js';
 import { AppError } from '../middleware/error-handler.js';
-import { validatePassword } from '../utils/validate-password.js';
+import { validatePassword, loadPasswordPolicy, savePasswordPolicy, type PasswordPolicy } from '../utils/validate-password.js';
 
 const VALID_ROLES = ['admin', 'viewer'];
 
@@ -36,6 +36,26 @@ export const userRoutes: Router = Router();
 
 userRoutes.use(requireRole('admin'));
 
+// GET /api/users/password-policy — current global password policy
+userRoutes.get('/password-policy', async (req: Request, res: Response, next) => {
+  try {
+    res.json(await loadPasswordPolicy(req.app.locals.prisma));
+  } catch (err) { next(err); }
+});
+
+// PUT /api/users/password-policy — update the global password policy
+userRoutes.put('/password-policy', async (req: Request, res: Response, next) => {
+  try {
+    const minLength = parseInt(req.body.minLength);
+    if (isNaN(minLength) || minLength < 1 || minLength > 128) {
+      throw new AppError(400, 'minLength must be between 1 and 128');
+    }
+    const policy: PasswordPolicy = { minLength, requireComplexity: !!req.body.requireComplexity };
+    await savePasswordPolicy(req.app.locals.prisma, policy);
+    res.json(policy);
+  } catch (err) { next(err); }
+});
+
 userRoutes.get('/', async (req: Request, res: Response, next) => {
   try {
     const prisma = req.app.locals.prisma;
@@ -56,13 +76,12 @@ userRoutes.post('/', async (req: Request, res: Response, next) => {
     const { username, password, displayName, role, serverConfigIds: rawServerConfigIds } = req.body;
     if (!username || !password || !displayName) throw new AppError(400, 'Username, password, and display name required');
 
-    const pwError = validatePassword(password);
+    const prisma = req.app.locals.prisma;
+    const pwError = validatePassword(password, await loadPasswordPolicy(prisma));
     if (pwError) throw new AppError(400, pwError);
 
     const assignedRole = role || 'viewer';
     if (!VALID_ROLES.includes(assignedRole)) throw new AppError(400, `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}`);
-
-    const prisma = req.app.locals.prisma;
     const serverConfigIds = parseServerConfigIds(rawServerConfigIds) ?? [];
     await validateServerConfigIds(prisma, serverConfigIds);
     const passwordHash = await bcrypt.hash(password, 12);
@@ -94,7 +113,7 @@ userRoutes.put('/:userId', async (req: Request, res: Response, next) => {
     }
     if (req.body.enabled !== undefined) data.enabled = req.body.enabled;
     if (req.body.password) {
-      const pwError = validatePassword(req.body.password);
+      const pwError = validatePassword(req.body.password, await loadPasswordPolicy(prisma));
       if (pwError) throw new AppError(400, pwError);
       data.passwordHash = await bcrypt.hash(req.body.password, 12);
     }
