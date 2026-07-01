@@ -29,6 +29,7 @@
     "libsodium-wrappers-sumo": "^0.8.2",
     "multer": "^1.4.5-lts.1",
     "nanoid": "^5.1.6",
+    "@node-saml/node-saml": "^5.1.0",
     "node-cron": "^3.0.3",
     "opusscript": "^0.1.1",
     "otplib": "^12.0.1",
