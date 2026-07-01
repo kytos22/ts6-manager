@@ -31,6 +31,7 @@ import { musicRequestRoutes } from './routes/music-requests.routes.js';
 import { widgetPublicRoutes } from './routes/widget-public.routes.js';
 import { widgetRoutes } from './routes/widget.routes.js';
 import { setupRoutes } from './routes/setup.routes.js';
+import { samlAuthRoutes } from './routes/saml-auth.routes.js';
 import { settingsRoutes } from './routes/settings.routes.js';
 import { journalRoutes } from './routes/journal.routes.js';
 import { discordRoutes } from './routes/discord.routes.js';
@@ -48,6 +49,8 @@ export function createApp(): Express {
   app.use(helmet());
   app.use(cors({ origin: config.frontendUrl, credentials: true }));
   app.use(express.json({ limit: '10mb' }));
+  // The IdP posts the SAMLResponse as application/x-www-form-urlencoded (ACS endpoint).
+  app.use(express.urlencoded({ extended: false }));
 
   // Health check
   app.get('/api/health', (_req, res) => {
@@ -68,6 +71,7 @@ export function createApp(): Express {
   // Public routes
   app.use('/api/setup', setupRoutes);
   app.use('/api/auth', authRoutes);
+  app.use('/api/auth/saml', samlAuthRoutes);
 
   // Bot webhook route (unauthenticated — called by external systems)
   app.all('/api/bots/webhook/:path(*)', (req, res) => {
