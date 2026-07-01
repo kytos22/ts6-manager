@@ -36,6 +36,8 @@ import { settingsRoutes } from './routes/settings.routes.js';
 import { journalRoutes } from './routes/journal.routes.js';
 import { discordRoutes } from './routes/discord.routes.js';
 import { spotifyRoutes } from './routes/spotify.routes.js';
+import { samlRoutes } from './routes/saml.routes.js';
+import { requireRole } from './middleware/rbac.js';
 import { requireServerAccess } from './middleware/server-access.js';
 import { auditAdminActions } from './middleware/audit.js';
 import { operationsRoutes } from './routes/operations.routes.js';
@@ -117,6 +119,7 @@ export function createApp(): Express {
   app.use('/api/journal', journalRoutes);
   app.use('/api/discord', discordRoutes);
   app.use('/api/spotify', spotifyRoutes);
+  app.use('/api/saml', requireRole('admin'), samlRoutes);
 
   // Error handler (must be last)
   app.use(errorHandler);
