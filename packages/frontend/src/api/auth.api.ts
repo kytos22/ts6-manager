@@ -30,4 +30,9 @@ export const authApi = {
     api.post('/auth/mfa/enable', mfaToken ? { code, mfaToken } : { code }).then((r) => r.data),
   mfaDisable: (password: string) =>
     api.post('/auth/mfa/disable', { password }),
+
+  samlStatus: (): Promise<{ enabled: boolean }> =>
+    api.get('/auth/saml/status').then((r) => r.data),
+  samlExchange: (code: string) =>
+    api.post('/auth/saml/exchange', { code }).then((r) => r.data),
 };

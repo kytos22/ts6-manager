@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { authApi } from '@/api/auth.api';
+import api from '@/api/client';
 import { useAuthStore } from '@/stores/auth.store';
 import { applyUserLanguage } from '@/hooks/use-auth';
 import { useTranslation } from 'react-i18next';
@@ -24,18 +24,47 @@ export default function Login() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [samlEnabled, setSamlEnabled] = useState(false);
 
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
-
   const finish = (data: any) => {
     setAuth(data.accessToken, data.refreshToken, data.user);
     applyUserLanguage(data.user);
     navigate('/dashboard');
   };
+
+  const routeAuth = async (res: any) => {
+    if (res.accessToken) return finish(res);
+    setMfaToken(res.mfaToken);
+    if (res.mfaSetupRequired) {
+      const setup = await authApi.mfaSetup(res.mfaToken);
+      setQr(setup.qrDataUrl);
+      setStep('setup');
+    } else {
+      setStep('code');
+    }
+  };
+
+  useEffect(() => {
+    authApi.samlStatus().then((status) => setSamlEnabled(status.enabled)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const mfa = (location.state as { mfa?: any } | null)?.mfa;
+    if (!mfa) return;
+    routeAuth(mfa).catch(() => setError(t('login.ssoError.generic')));
+    navigate(location.pathname, { replace: true, state: null });
+    // The handoff state is intentionally consumed once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+
+  const ssoLoginUrl = `${api.defaults.baseURL?.replace(/\/$/, '')}/auth/saml/login`;
 
   const handlePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,15 +72,7 @@ export default function Login() {
     setBusy(true);
     try {
       const res = await authApi.login(username, password);
-      if (res.accessToken) return finish(res);
-      setMfaToken(res.mfaToken);
-      if (res.mfaSetupRequired) {
-        const setup = await authApi.mfaSetup(res.mfaToken);
-        setQr(setup.qrDataUrl);
-        setStep('setup');
-      } else {
-        setStep('code'); // mfaRequired
-      }
+      await routeAuth(res);
     } catch {
       setError(t('login.invalidCredentials'));
     } finally {
@@ -118,7 +139,8 @@ export default function Login() {
             )}
 
             {step === 'password' && (
-              <form onSubmit={handlePassword} className="space-y-4">
+              <>
+                <form onSubmit={handlePassword} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="username" className="text-xs">{t('login.username')}</Label>
                   <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" autoComplete="username" autoFocus />
@@ -130,7 +152,18 @@ export default function Login() {
                 <Button type="submit" className="w-full" disabled={busy || !username || !password}>
                   {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('login.signingIn')}</> : t('login.signIn')}
                 </Button>
-              </form>
+                </form>
+                {samlEnabled && (
+                  <>
+                    <div className="my-3 flex items-center gap-2 text-xs text-muted-foreground">
+                      <div className="h-px flex-1 bg-border" /> {t('login.or')} <div className="h-px flex-1 bg-border" />
+                    </div>
+                    <a href={ssoLoginUrl} className="block">
+                      <Button type="button" variant="outline" className="w-full">{t('login.sso')}</Button>
+                    </a>
+                  </>
+                )}
+              </>
             )}
 
             {step === 'setup' && (
