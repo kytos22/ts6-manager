@@ -23,13 +23,13 @@
     "tokens": "Jetons",
     "content": "Contenu",
     "files": "Fichiers",
-    "iconManager": "Gestionnaire d’icônes",
     "complaints": "Plaintes",
     "messages": "Messages",
     "system": "Système",
     "serverLogs": "Journaux serveur",
     "connectionJournal": "Journal de connexions",
     "instance": "Instance",
+    "iconManager": "Gestionnaire d’icônes",
     "operations": "Opérations",
     "musicRequests": "Historique des requêtes musicales",
     "automation": "Automatisation",
@@ -57,7 +57,31 @@
     "enterCodeToFinish": "Saisissez le code à 6 chiffres de votre application d'authentification pour terminer la connexion.",
     "verify": "Vérifier",
     "verifying": "Vérification...",
-    "invalidCode": "Code invalide. Réessayez."
+    "invalidCode": "Code invalide. Réessayez.",
+    "changePasswordTitle": "Changez votre mot de passe",
+    "changePasswordPrompt": "Vous devez définir un nouveau mot de passe avant de continuer.",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "changeAndContinue": "Changer et continuer",
+    "changingPassword": "Modification...",
+    "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
+    "changeFailed": "Impossible de changer le mot de passe",
+    "trustDevice": "Cet ordinateur est un PC de confiance",
+    "trustDeviceInfo": "Pendant 30 jours, cet appareil vous connectera automatiquement, sans mot de passe ni code à deux facteurs. À n'utiliser que sur un appareil personnel que vous contrôlez. Vous pouvez le révoquer à tout moment depuis Paramètres → Compte.",
+    "continueAs": "Continuer en tant que {{name}}",
+    "useAnotherAccount": "Se connecter avec un autre compte",
+    "or": "ou",
+    "sso": "Se connecter via SSO",
+    "ssoProcessing": "Connexion en cours…",
+    "backToLogin": "Retour à la connexion",
+    "ssoError": {
+      "generic": "Échec de la connexion SSO",
+      "not_provisioned": "Compte non provisionné. Contactez un administrateur.",
+      "saml_failed": "L'authentification SAML a échoué",
+      "exchange_failed": "Session SSO invalide ou expirée",
+      "missing_code": "Réponse SSO invalide"
+    }
   },
   "settings": {
     "title": "Paramètres",
@@ -67,7 +91,9 @@
       "users": "Utilisateurs",
       "youtube": "YouTube",
       "discord": "Discord",
-      "spotify": "Spotify"
+      "spotify": "Spotify",
+      "musicCommands": "Music Bot",
+      "saml": "SSO / SAML"
     },
     "account": {
       "changePassword": "Changer le mot de passe",
@@ -101,6 +127,20 @@
         "invalidCode": "Code invalide",
         "disabledToast": "MFA désactivé",
         "disableFailed": "Échec de la désactivation du MFA"
+      },
+      "trustedDevices": {
+        "title": "PC de confiance",
+        "description": "Appareils qui se connectent automatiquement pendant 30 jours, sans mot de passe ni code à deux facteurs.",
+        "empty": "Aucun appareil de confiance.",
+        "thisDevice": "Cet appareil",
+        "added": "Ajouté",
+        "lastUsed": "Dernière utilisation",
+        "expires": "Expire",
+        "revoke": "Révoquer",
+        "revokeAll": "Tout révoquer",
+        "revoked": "Appareil de confiance révoqué",
+        "revokedAll": "Tous les appareils de confiance ont été révoqués",
+        "revokeError": "Impossible de révoquer l'appareil"
       }
     },
     "connections": {
@@ -135,7 +175,8 @@
       "toastCreateFailed": "Échec de la création",
       "toastUpdateFailed": "Échec de la mise à jour",
       "toastTestSuccess": "Connexion réussie",
-      "toastTestFailed": "Échec de la connexion"
+      "toastTestFailed": "Échec de la connexion",
+      "unchanged": "(inchangé)"
     },
     "users": {
       "subtitle": "Gérer les utilisateurs et les rôles de l'application",
@@ -217,7 +258,9 @@
         "saving": "Enregistrement...",
         "toastSaved": "Conservation enregistrée",
         "toastSaveFailed": "Échec de l'enregistrement"
-      }
+      },
+      "requireMfa": "Exiger le MFA (enrôlement à la 1re connexion)",
+      "mustChangePassword": "Changer le mot de passe à la prochaine connexion"
     },
     "youtube": {
       "title": "Cookies YouTube",
@@ -277,6 +320,10 @@
       "templateVariables": "Variables :",
       "and": "et",
       "nowPlaying": "Lecture en cours (musique)",
+      "awayStatus": "Notifier les passages AFK",
+      "awayTemplate": "Message passage AFK",
+      "backTemplate": "Message retour d'AFK",
+      "awayHint": "Utilise le canal surveillé et le style définis ci-dessus.",
       "liveStatsPanel": "Panneau de statistiques en direct (édité toutes les 60 s)",
       "statsCommandHint": "La commande /stats reste disponible quels que soient ces réglages.",
       "botFlows": "Flux du bot",
@@ -289,7 +336,13 @@
       "savingReconnecting": "Enregistrement et reconnexion...",
       "toastSaved": "Paramètres Discord enregistrés",
       "toastSaveFailed": "Échec de l'enregistrement",
-      "toastSavedButError": "Enregistré, mais : {{error}}"
+      "toastSavedButError": "Enregistré, mais : {{error}}",
+      "embedStyle": "Style embed (carte colorée) au lieu d'un message simple",
+      "autoDelete": "Auto-suppression des notifications après (secondes)",
+      "autoDeleteHint": "0 = conserver les messages. Supprime les notifs join/leave, now-playing et /stats après le délai pour éviter la pollution du canal (le panneau stats live n'est pas concerné).",
+      "commandRoles": "Rôles autorisés pour les commandes",
+      "commandRolesHint": "Vide = tout le monde peut utiliser les commandes. Choisis des rôles pour restreindre. Les administrateurs Discord et le propriétaire du serveur sont toujours autorisés.",
+      "commandRolesOffline": "Connecte le bot pour lister ses rôles."
     },
     "spotify": {
       "title": "Spotify",
@@ -308,6 +361,36 @@
       "saving": "Enregistrement...",
       "toastSaved": "Paramètres Spotify enregistrés",
       "toastSaveFailed": "Échec de l'enregistrement"
+    },
+    "musicCommands": {
+      "title": "Commandes Music Bot",
+      "description": "Restreindre les commandes du Music Bot à des groupes serveur, et activer la notification du titre en cours dans le canal TeamSpeak. Les groupes sont ceux du serveur actuellement sélectionné.",
+      "noServerHint": "Sélectionnez un serveur pour lister les groupes.",
+      "musicGroup": "Groupe pour les commandes musicales (!play, !skip, …)",
+      "adminGroup": "Groupe pour les commandes d'admin (!move, !moveall, !notif)",
+      "openToAll": "Aucun (ouvert à tous)",
+      "notifyNowPlaying": "Notifier le titre en cours dans le canal TS",
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "toastSaved": "Réglages enregistrés",
+      "toastSaveFailed": "Échec de l'enregistrement"
+    },
+    "saml": {
+      "enable": "Activer l'authentification SSO (SAML)",
+      "autoProvision": "Provisionnement automatique des comptes authentifiés via SSO",
+      "defaultRole": "Rôle par défaut des comptes SSO",
+      "idpSsoUrl": "URL SSO de l'IdP",
+      "idpCertificate": "Certificat de signature de l'IdP",
+      "idpEntityId": "Entity ID de l'IdP",
+      "attrUsername": "Attribut : nom d'utilisateur",
+      "attrEmail": "Attribut : e-mail",
+      "attrDisplayName": "Attribut : nom affiché",
+      "attrRole": "Attribut : rôle / groupe",
+      "roleAdminValue": "Valeur accordant le rôle admin",
+      "spInfo": "À renseigner côté IdP (Authentik) :",
+      "spMetadataUrl": "URL de metadata du SP",
+      "acsUrl": "URL ACS (Assertion Consumer Service)",
+      "saved": "Réglages SSO enregistrés"
     }
   },
   "channels": {
@@ -340,7 +423,8 @@
     "toastUpdated": "Salon mis à jour",
     "toastUpdateFailed": "Échec de la mise à jour du salon",
     "toastMoved": "Salon déplacé",
-    "toastMoveFailed": "Échec du déplacement du salon"
+    "toastMoveFailed": "Échec du déplacement du salon",
+    "dropToRoot": "Déposer ici pour mettre à la racine"
   },
   "clients": {
     "title": "Clients",
@@ -521,7 +605,14 @@
     "deleteServerGroup": "Supprimer le groupe de serveur",
     "deleteConfirm": "Supprimer « {{name}} » ?",
     "delete": "Supprimer",
-    "groupDeleted": "Groupe supprimé"
+    "groupDeleted": "Groupe supprimé",
+    "addMember": "Ajouter un membre",
+    "addMemberTitle": "Ajouter un membre au groupe",
+    "removeMember": "Retirer du groupe",
+    "searchClient": "Rechercher un client connecté...",
+    "memberAdded": "Membre ajouté",
+    "memberRemoved": "Membre retiré",
+    "memberActionFailed": "Action sur le membre échouée"
   },
   "tokens": {
     "title": "Clés de privilège",
@@ -599,7 +690,25 @@
     "success": "Réussite",
     "failed": "Échec",
     "entryCount_one": "{{count}} entrée",
-    "entryCount_other": "{{count}} entrées"
+    "entryCount_other": "{{count}} entrées",
+    "colActions": "Actions",
+    "webBans": "Bans web",
+    "ban": "Bannir",
+    "banTitle": "Bannir une adresse IP",
+    "banIntro": "Bannir cette IP :",
+    "banWeb": "Bloquer le login web",
+    "banTeamSpeak": "Bannir sur TeamSpeak (tous les serveurs)",
+    "banDuration": "Durée (minutes, 0 = permanent)",
+    "banReason": "Raison (facultatif)",
+    "banConfirm": "Bannir",
+    "banning": "Bannissement...",
+    "cancel": "Annuler",
+    "banApplied": "Bannissement appliqué",
+    "banFailed": "Échec du bannissement",
+    "banRevoked": "Bannissement révoqué",
+    "webBansTitle": "Adresses IP bannies (web)",
+    "noWebBans": "Aucun ban web.",
+    "permanent": "Permanent"
   },
   "messages": {
     "title": "Messages hors ligne",
@@ -1003,7 +1112,8 @@
       "selectRunningBot": "Sélectionnez d'abord un bot en cours d'exécution",
       "playingRadio": "Lecture de la radio",
       "playRadioFailed": "Échec de la lecture de la radio",
-      "stationRemoved": "Station retirée"
+      "stationRemoved": "Station retirée",
+      "widgetFailed": "Échec du chargement du widget"
     },
     "playDialog": {
       "title": "Lire de la musique",

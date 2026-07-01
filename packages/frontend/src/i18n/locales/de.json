@@ -23,13 +23,13 @@
     "tokens": "Token",
     "content": "Inhalte",
     "files": "Dateien",
-    "iconManager": "Symbolverwaltung",
     "complaints": "Beschwerden",
     "messages": "Nachrichten",
     "system": "System",
     "serverLogs": "Server-Protokolle",
     "connectionJournal": "Verbindungsprotokoll",
     "instance": "Instanz",
+    "iconManager": "Symbolverwaltung",
     "operations": "Operationen",
     "musicRequests": "Musikanfragen-Verlauf",
     "automation": "Automatisierung",
@@ -57,7 +57,31 @@
     "enterCodeToFinish": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein, um die Anmeldung abzuschließen.",
     "verify": "Überprüfen",
     "verifying": "Überprüfung...",
-    "invalidCode": "Ungültiger Code. Erneut versuchen."
+    "invalidCode": "Ungültiger Code. Erneut versuchen.",
+    "changePasswordTitle": "Passwort ändern",
+    "changePasswordPrompt": "Sie müssen ein neues Passwort festlegen, bevor Sie fortfahren.",
+    "currentPassword": "Aktuelles Passwort",
+    "newPassword": "Neues Passwort",
+    "confirmPassword": "Neues Passwort bestätigen",
+    "changeAndContinue": "Ändern & fortfahren",
+    "changingPassword": "Wird geändert...",
+    "passwordsDoNotMatch": "Die Passwörter stimmen nicht überein",
+    "changeFailed": "Passwort konnte nicht geändert werden",
+    "trustDevice": "Dies ist ein vertrauenswürdiger Computer",
+    "trustDeviceInfo": "30 Tage lang meldet dich dieses Gerät automatisch an – ohne Passwort und ohne Zwei-Faktor-Code. Nutze dies nur auf einem privaten Gerät, das du kontrollierst. Du kannst es jederzeit unter Einstellungen → Konto widerrufen.",
+    "continueAs": "Als {{name}} fortfahren",
+    "useAnotherAccount": "Mit einem anderen Konto anmelden",
+    "or": "oder",
+    "sso": "Über SSO anmelden",
+    "ssoProcessing": "Anmeldung läuft…",
+    "backToLogin": "Zurück zur Anmeldung",
+    "ssoError": {
+      "generic": "SSO-Anmeldung fehlgeschlagen",
+      "not_provisioned": "Konto nicht bereitgestellt. Bitte einen Administrator kontaktieren.",
+      "saml_failed": "SAML-Authentifizierung fehlgeschlagen",
+      "exchange_failed": "SSO-Sitzung ungültig oder abgelaufen",
+      "missing_code": "Ungültige SSO-Antwort"
+    }
   },
   "settings": {
     "title": "Einstellungen",
@@ -67,7 +91,9 @@
       "users": "Benutzer",
       "youtube": "YouTube",
       "discord": "Discord",
-      "spotify": "Spotify"
+      "spotify": "Spotify",
+      "musicCommands": "Music-Bot",
+      "saml": "SSO / SAML"
     },
     "account": {
       "changePassword": "Passwort ändern",
@@ -101,6 +127,20 @@
         "invalidCode": "Ungültiger Code",
         "disabledToast": "MFA deaktiviert",
         "disableFailed": "MFA konnte nicht deaktiviert werden"
+      },
+      "trustedDevices": {
+        "title": "Vertrauenswürdige Geräte",
+        "description": "Geräte, die sich 30 Tage lang automatisch ohne Passwort oder Zwei-Faktor-Code anmelden.",
+        "empty": "Keine vertrauenswürdigen Geräte.",
+        "thisDevice": "Dieses Gerät",
+        "added": "Hinzugefügt",
+        "lastUsed": "Zuletzt verwendet",
+        "expires": "Läuft ab",
+        "revoke": "Widerrufen",
+        "revokeAll": "Alle widerrufen",
+        "revoked": "Vertrauenswürdiges Gerät widerrufen",
+        "revokedAll": "Alle vertrauenswürdigen Geräte widerrufen",
+        "revokeError": "Gerät konnte nicht widerrufen werden"
       }
     },
     "connections": {
@@ -135,7 +175,8 @@
       "toastCreateFailed": "Erstellen fehlgeschlagen",
       "toastUpdateFailed": "Aktualisieren fehlgeschlagen",
       "toastTestSuccess": "Verbindung erfolgreich",
-      "toastTestFailed": "Verbindung fehlgeschlagen"
+      "toastTestFailed": "Verbindung fehlgeschlagen",
+      "unchanged": "(unverändert)"
     },
     "users": {
       "subtitle": "Webapp-Benutzer und -Rollen verwalten",
@@ -217,7 +258,9 @@
         "saving": "Wird gespeichert...",
         "toastSaved": "Aufbewahrung gespeichert",
         "toastSaveFailed": "Speichern fehlgeschlagen"
-      }
+      },
+      "requireMfa": "MFA erforderlich (Einrichtung bei der ersten Anmeldung)",
+      "mustChangePassword": "Passwort bei der nächsten Anmeldung ändern"
     },
     "youtube": {
       "title": "YouTube-Cookies",
@@ -277,6 +320,10 @@
       "templateVariables": "Variablen:",
       "and": "und",
       "nowPlaying": "Aktuelle Wiedergabe (Musik)",
+      "awayStatus": "AFK-Statuswechsel melden",
+      "awayTemplate": "AFK-Nachricht",
+      "backTemplate": "Zurück-Nachricht",
+      "awayHint": "Verwendet den oben festgelegten überwachten Kanal und Stil.",
       "liveStatsPanel": "Live-Statistikpanel (alle 60 s aktualisiert)",
       "statsCommandHint": "Der Befehl /stats bleibt unabhängig von diesen Schaltern verfügbar.",
       "botFlows": "Bot-Flows",
@@ -289,7 +336,13 @@
       "savingReconnecting": "Speichern & neu verbinden...",
       "toastSaved": "Discord-Einstellungen gespeichert",
       "toastSaveFailed": "Speichern fehlgeschlagen",
-      "toastSavedButError": "Gespeichert, aber: {{error}}"
+      "toastSavedButError": "Gespeichert, aber: {{error}}",
+      "embedStyle": "Embed-Stil (farbige Karte) statt einer einfachen Nachricht",
+      "autoDelete": "Benachrichtigungen automatisch löschen nach (Sekunden)",
+      "autoDeleteHint": "0 = Nachrichten behalten. Entfernt Join/Leave-, Now-Playing- und /stats-Nachrichten nach der Verzögerung, um den Kanal sauber zu halten (das Live-Statspanel ist nicht betroffen).",
+      "commandRoles": "Erlaubte Rollen für Befehle",
+      "commandRolesHint": "Leer = alle dürfen die Befehle nutzen. Wähle Rollen, um den Zugriff einzuschränken. Discord-Administratoren und der Server-Inhaber sind immer erlaubt.",
+      "commandRolesOffline": "Verbinde den Bot, um seine Rollen aufzulisten."
     },
     "spotify": {
       "title": "Spotify",
@@ -308,6 +361,36 @@
       "saving": "Wird gespeichert...",
       "toastSaved": "Spotify-Einstellungen gespeichert",
       "toastSaveFailed": "Speichern fehlgeschlagen"
+    },
+    "musicCommands": {
+      "title": "Music-Bot-Befehle",
+      "description": "Music-Bot-Befehle auf Servergruppen beschränken und die Wiedergabe-Benachrichtigung im TeamSpeak-Kanal aktivieren. Es gelten die Gruppen des aktuell ausgewählten Servers.",
+      "noServerHint": "Wählen Sie einen Server, um die Gruppen anzuzeigen.",
+      "musicGroup": "Gruppe für Musikbefehle (!play, !skip, …)",
+      "adminGroup": "Gruppe für Admin-Befehle (!move, !moveall, !notif)",
+      "openToAll": "Keine (für alle offen)",
+      "notifyNowPlaying": "Aktuellen Titel im TS-Kanal ankündigen",
+      "save": "Speichern",
+      "saving": "Wird gespeichert...",
+      "toastSaved": "Einstellungen gespeichert",
+      "toastSaveFailed": "Speichern fehlgeschlagen"
+    },
+    "saml": {
+      "enable": "SSO-Authentifizierung (SAML) aktivieren",
+      "autoProvision": "Über SSO authentifizierte Konten automatisch bereitstellen",
+      "defaultRole": "Standardrolle für SSO-Konten",
+      "idpSsoUrl": "IdP-SSO-URL",
+      "idpCertificate": "Signaturzertifikat des IdP",
+      "idpEntityId": "IdP-Entity-ID",
+      "attrUsername": "Attribut: Benutzername",
+      "attrEmail": "Attribut: E-Mail",
+      "attrDisplayName": "Attribut: Anzeigename",
+      "attrRole": "Attribut: Rolle / Gruppe",
+      "roleAdminValue": "Wert, der die Admin-Rolle gewährt",
+      "spInfo": "Auf der IdP-Seite anzugeben (Authentik):",
+      "spMetadataUrl": "SP-Metadaten-URL",
+      "acsUrl": "ACS-URL (Assertion Consumer Service)",
+      "saved": "SSO-Einstellungen gespeichert"
     }
   },
   "channels": {
@@ -340,7 +423,8 @@
     "toastUpdated": "Kanal aktualisiert",
     "toastUpdateFailed": "Kanal konnte nicht aktualisiert werden",
     "toastMoved": "Kanal verschoben",
-    "toastMoveFailed": "Kanal konnte nicht verschoben werden"
+    "toastMoveFailed": "Kanal konnte nicht verschoben werden",
+    "dropToRoot": "Hier ablegen, um auf die oberste Ebene zu verschieben"
   },
   "clients": {
     "title": "Clients",
@@ -521,7 +605,14 @@
     "deleteServerGroup": "Servergruppe löschen",
     "deleteConfirm": "„{{name}}“ löschen?",
     "delete": "Löschen",
-    "groupDeleted": "Gruppe gelöscht"
+    "groupDeleted": "Gruppe gelöscht",
+    "addMember": "Mitglied hinzufügen",
+    "addMemberTitle": "Mitglied zur Gruppe hinzufügen",
+    "removeMember": "Aus Gruppe entfernen",
+    "searchClient": "Verbundenen Client suchen...",
+    "memberAdded": "Mitglied hinzugefügt",
+    "memberRemoved": "Mitglied entfernt",
+    "memberActionFailed": "Mitgliederaktion fehlgeschlagen"
   },
   "tokens": {
     "title": "Berechtigungsschlüssel",
@@ -599,7 +690,25 @@
     "success": "Erfolg",
     "failed": "Fehlgeschlagen",
     "entryCount_one": "{{count}} Eintrag",
-    "entryCount_other": "{{count}} Einträge"
+    "entryCount_other": "{{count}} Einträge",
+    "colActions": "Aktionen",
+    "webBans": "Web-Sperren",
+    "ban": "Sperren",
+    "banTitle": "IP-Adresse sperren",
+    "banIntro": "Diese IP sperren:",
+    "banWeb": "Web-Login blockieren",
+    "banTeamSpeak": "Auf TeamSpeak sperren (alle Server)",
+    "banDuration": "Dauer (Minuten, 0 = dauerhaft)",
+    "banReason": "Grund (optional)",
+    "banConfirm": "Sperren",
+    "banning": "Wird gesperrt...",
+    "cancel": "Abbrechen",
+    "banApplied": "Sperre angewendet",
+    "banFailed": "Sperre fehlgeschlagen",
+    "banRevoked": "Sperre aufgehoben",
+    "webBansTitle": "Web-gesperrte IP-Adressen",
+    "noWebBans": "Keine Web-Sperren.",
+    "permanent": "Dauerhaft"
   },
   "messages": {
     "title": "Offline-Nachrichten",
@@ -1003,7 +1112,8 @@
       "selectRunningBot": "Wählen Sie zuerst einen laufenden Bot aus",
       "playingRadio": "Radio wird abgespielt",
       "playRadioFailed": "Abspielen des Radios fehlgeschlagen",
-      "stationRemoved": "Sender entfernt"
+      "stationRemoved": "Sender entfernt",
+      "widgetFailed": "Widget konnte nicht geladen werden"
     },
     "playDialog": {
       "title": "Musik abspielen",

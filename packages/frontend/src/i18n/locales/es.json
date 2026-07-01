@@ -23,13 +23,13 @@
     "tokens": "Tokens",
     "content": "Contenido",
     "files": "Archivos",
-    "iconManager": "Gestor de iconos",
     "complaints": "Quejas",
     "messages": "Mensajes",
     "system": "Sistema",
     "serverLogs": "Registros del servidor",
     "connectionJournal": "Registro de conexiones",
     "instance": "Instancia",
+    "iconManager": "Gestor de iconos",
     "operations": "Operaciones",
     "musicRequests": "Historial de peticiones musicales",
     "automation": "Automatización",
@@ -57,7 +57,31 @@
     "enterCodeToFinish": "Introduce el código de 6 dígitos de tu app de autenticación para terminar de iniciar sesión.",
     "verify": "Verificar",
     "verifying": "Verificando...",
-    "invalidCode": "Código inválido. Inténtalo de nuevo."
+    "invalidCode": "Código inválido. Inténtalo de nuevo.",
+    "changePasswordTitle": "Cambia tu contraseña",
+    "changePasswordPrompt": "Debes establecer una nueva contraseña antes de continuar.",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar nueva contraseña",
+    "changeAndContinue": "Cambiar y continuar",
+    "changingPassword": "Cambiando...",
+    "passwordsDoNotMatch": "Las contraseñas no coinciden",
+    "changeFailed": "No se pudo cambiar la contraseña",
+    "trustDevice": "Este es un ordenador de confianza",
+    "trustDeviceInfo": "Durante 30 días, este dispositivo iniciará sesión automáticamente, sin contraseña ni código de doble factor. Úsalo solo en un dispositivo privado que controles. Puedes revocarlo en cualquier momento desde Ajustes → Cuenta.",
+    "continueAs": "Continuar como {{name}}",
+    "useAnotherAccount": "Iniciar sesión con otra cuenta",
+    "or": "o",
+    "sso": "Iniciar sesión con SSO",
+    "ssoProcessing": "Iniciando sesión…",
+    "backToLogin": "Volver al inicio de sesión",
+    "ssoError": {
+      "generic": "Error al iniciar sesión con SSO",
+      "not_provisioned": "Cuenta no aprovisionada. Contacta con un administrador.",
+      "saml_failed": "Error en la autenticación SAML",
+      "exchange_failed": "Sesión SSO inválida o expirada",
+      "missing_code": "Respuesta SSO inválida"
+    }
   },
   "settings": {
     "title": "Ajustes",
@@ -67,7 +91,9 @@
       "users": "Usuarios",
       "youtube": "YouTube",
       "discord": "Discord",
-      "spotify": "Spotify"
+      "spotify": "Spotify",
+      "musicCommands": "Music Bot",
+      "saml": "SSO / SAML"
     },
     "account": {
       "changePassword": "Cambiar contraseña",
@@ -101,6 +127,20 @@
         "invalidCode": "Código inválido",
         "disabledToast": "MFA desactivado",
         "disableFailed": "No se pudo desactivar el MFA"
+      },
+      "trustedDevices": {
+        "title": "Dispositivos de confianza",
+        "description": "Dispositivos que inician sesión automáticamente durante 30 días, sin contraseña ni código de doble factor.",
+        "empty": "No hay dispositivos de confianza.",
+        "thisDevice": "Este dispositivo",
+        "added": "Añadido",
+        "lastUsed": "Último uso",
+        "expires": "Caduca",
+        "revoke": "Revocar",
+        "revokeAll": "Revocar todos",
+        "revoked": "Dispositivo de confianza revocado",
+        "revokedAll": "Todos los dispositivos de confianza revocados",
+        "revokeError": "No se pudo revocar el dispositivo"
       }
     },
     "connections": {
@@ -135,7 +175,8 @@
       "toastCreateFailed": "Error al crear",
       "toastUpdateFailed": "Error al actualizar",
       "toastTestSuccess": "Conexión exitosa",
-      "toastTestFailed": "Error de conexión"
+      "toastTestFailed": "Error de conexión",
+      "unchanged": "(sin cambios)"
     },
     "users": {
       "subtitle": "Gestionar usuarios y roles de la aplicación",
@@ -217,7 +258,9 @@
         "saving": "Guardando...",
         "toastSaved": "Retención guardada",
         "toastSaveFailed": "Error al guardar"
-      }
+      },
+      "requireMfa": "Exigir MFA (registro en el primer inicio de sesión)",
+      "mustChangePassword": "Cambiar la contraseña en el próximo inicio de sesión"
     },
     "youtube": {
       "title": "Cookies de YouTube",
@@ -277,6 +320,10 @@
       "templateVariables": "Variables:",
       "and": "y",
       "nowPlaying": "Reproduciendo ahora (música)",
+      "awayStatus": "Notificar cambios de estado AFK",
+      "awayTemplate": "Mensaje AFK",
+      "backTemplate": "Mensaje de regreso",
+      "awayHint": "Usa el canal vigilado y el estilo definidos arriba.",
       "liveStatsPanel": "Panel de estadísticas en vivo (editado cada 60 s)",
       "statsCommandHint": "El comando /stats sigue disponible independientemente de estos interruptores.",
       "botFlows": "Flujos del bot",
@@ -289,7 +336,13 @@
       "savingReconnecting": "Guardando y reconectando...",
       "toastSaved": "Configuración de Discord guardada",
       "toastSaveFailed": "Error al guardar",
-      "toastSavedButError": "Guardado, pero: {{error}}"
+      "toastSavedButError": "Guardado, pero: {{error}}",
+      "embedStyle": "Estilo embed (tarjeta de color) en lugar de un mensaje simple",
+      "autoDelete": "Eliminar notificaciones automáticamente tras (segundos)",
+      "autoDeleteHint": "0 = conservar los mensajes. Elimina los mensajes de entrada/salida, now-playing y /stats tras el tiempo indicado para evitar saturar el canal (el panel de estadísticas en vivo no se ve afectado).",
+      "commandRoles": "Roles permitidos para los comandos",
+      "commandRolesHint": "Vacío = todos pueden usar los comandos. Elige roles para restringir el acceso. Los administradores de Discord y el propietario del servidor siempre tienen permiso.",
+      "commandRolesOffline": "Conecta el bot para listar sus roles."
     },
     "spotify": {
       "title": "Spotify",
@@ -308,6 +361,36 @@
       "saving": "Guardando...",
       "toastSaved": "Configuración de Spotify guardada",
       "toastSaveFailed": "Error al guardar"
+    },
+    "musicCommands": {
+      "title": "Comandos del Music Bot",
+      "description": "Restringe los comandos del Music Bot a grupos de servidor y activa la notificación del tema actual en el canal de TeamSpeak. Los grupos son los del servidor seleccionado.",
+      "noServerHint": "Selecciona un servidor para listar los grupos.",
+      "musicGroup": "Grupo para comandos de música (!play, !skip, …)",
+      "adminGroup": "Grupo para comandos de admin (!move, !moveall, !notif)",
+      "openToAll": "Ninguno (abierto a todos)",
+      "notifyNowPlaying": "Anunciar el tema actual en el canal TS",
+      "save": "Guardar",
+      "saving": "Guardando...",
+      "toastSaved": "Ajustes guardados",
+      "toastSaveFailed": "Error al guardar"
+    },
+    "saml": {
+      "enable": "Activar la autenticación SSO (SAML)",
+      "autoProvision": "Aprovisionar automáticamente las cuentas autenticadas vía SSO",
+      "defaultRole": "Rol predeterminado de las cuentas SSO",
+      "idpSsoUrl": "URL SSO del IdP",
+      "idpCertificate": "Certificado de firma del IdP",
+      "idpEntityId": "Entity ID del IdP",
+      "attrUsername": "Atributo: nombre de usuario",
+      "attrEmail": "Atributo: correo electrónico",
+      "attrDisplayName": "Atributo: nombre para mostrar",
+      "attrRole": "Atributo: rol / grupo",
+      "roleAdminValue": "Valor que otorga el rol de admin",
+      "spInfo": "A configurar en el IdP (Authentik):",
+      "spMetadataUrl": "URL de metadatos del SP",
+      "acsUrl": "URL ACS (Assertion Consumer Service)",
+      "saved": "Ajustes de SSO guardados"
     }
   },
   "channels": {
@@ -340,7 +423,8 @@
     "toastUpdated": "Canal actualizado",
     "toastUpdateFailed": "Error al actualizar el canal",
     "toastMoved": "Canal movido",
-    "toastMoveFailed": "Error al mover el canal"
+    "toastMoveFailed": "Error al mover el canal",
+    "dropToRoot": "Suelta aquí para mover al nivel superior"
   },
   "clients": {
     "title": "Clientes",
@@ -521,7 +605,14 @@
     "deleteServerGroup": "Eliminar grupo de servidor",
     "deleteConfirm": "¿Eliminar «{{name}}»?",
     "delete": "Eliminar",
-    "groupDeleted": "Grupo eliminado"
+    "groupDeleted": "Grupo eliminado",
+    "addMember": "Añadir miembro",
+    "addMemberTitle": "Añadir un miembro al grupo",
+    "removeMember": "Quitar del grupo",
+    "searchClient": "Buscar un cliente conectado...",
+    "memberAdded": "Miembro añadido",
+    "memberRemoved": "Miembro eliminado",
+    "memberActionFailed": "Acción sobre el miembro fallida"
   },
   "tokens": {
     "title": "Claves de privilegio",
@@ -599,7 +690,25 @@
     "success": "Éxito",
     "failed": "Fallido",
     "entryCount_one": "{{count}} entrada",
-    "entryCount_other": "{{count}} entradas"
+    "entryCount_other": "{{count}} entradas",
+    "colActions": "Acciones",
+    "webBans": "Baneos web",
+    "ban": "Banear",
+    "banTitle": "Banear dirección IP",
+    "banIntro": "Banear esta IP:",
+    "banWeb": "Bloquear el acceso web",
+    "banTeamSpeak": "Banear en TeamSpeak (todos los servidores)",
+    "banDuration": "Duración (minutos, 0 = permanente)",
+    "banReason": "Motivo (opcional)",
+    "banConfirm": "Banear",
+    "banning": "Baneando...",
+    "cancel": "Cancelar",
+    "banApplied": "Baneo aplicado",
+    "banFailed": "Error al banear",
+    "banRevoked": "Baneo revocado",
+    "webBansTitle": "Direcciones IP baneadas (web)",
+    "noWebBans": "Sin baneos web.",
+    "permanent": "Permanente"
   },
   "messages": {
     "title": "Mensajes sin conexión",
@@ -1003,7 +1112,8 @@
       "selectRunningBot": "Selecciona primero un bot en ejecución",
       "playingRadio": "Reproduciendo radio",
       "playRadioFailed": "Error al reproducir la radio",
-      "stationRemoved": "Emisora eliminada"
+      "stationRemoved": "Emisora eliminada",
+      "widgetFailed": "Error al cargar el widget"
     },
     "playDialog": {
       "title": "Reproducir música",

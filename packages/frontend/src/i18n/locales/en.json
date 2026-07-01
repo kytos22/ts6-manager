@@ -23,13 +23,13 @@
     "tokens": "Tokens",
     "content": "Content",
     "files": "Files",
-    "iconManager": "Icon Manager",
     "complaints": "Complaints",
     "messages": "Messages",
     "system": "System",
     "serverLogs": "Server Logs",
     "connectionJournal": "Connection Journal",
     "instance": "Instance",
+    "iconManager": "Icon Manager",
     "operations": "Operations",
     "musicRequests": "Music Request History",
     "automation": "Automation",
@@ -57,7 +57,31 @@
     "enterCodeToFinish": "Enter the 6-digit code from your authenticator app to finish signing in.",
     "verify": "Verify",
     "verifying": "Verifying...",
-    "invalidCode": "Invalid code. Try again."
+    "invalidCode": "Invalid code. Try again.",
+    "changePasswordTitle": "Change your password",
+    "changePasswordPrompt": "You must set a new password before continuing.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "changeAndContinue": "Change & continue",
+    "changingPassword": "Changing...",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "changeFailed": "Could not change the password",
+    "trustDevice": "This is a trusted computer",
+    "trustDeviceInfo": "For 30 days, this device will sign you in automatically — no password and no two-factor code. Only use this on a private device you control. You can revoke it anytime from Settings → Account.",
+    "continueAs": "Continue as {{name}}",
+    "useAnotherAccount": "Sign in with a different account",
+    "or": "or",
+    "sso": "Sign in via SSO",
+    "ssoProcessing": "Signing in…",
+    "backToLogin": "Back to sign in",
+    "ssoError": {
+      "generic": "SSO sign-in failed",
+      "not_provisioned": "Account not provisioned. Contact an administrator.",
+      "saml_failed": "SAML authentication failed",
+      "exchange_failed": "SSO session invalid or expired",
+      "missing_code": "Invalid SSO response"
+    }
   },
   "settings": {
     "title": "Settings",
@@ -67,7 +91,9 @@
       "users": "Users",
       "youtube": "YouTube",
       "discord": "Discord",
-      "spotify": "Spotify"
+      "spotify": "Spotify",
+      "musicCommands": "Music Bot",
+      "saml": "SSO / SAML"
     },
     "account": {
       "changePassword": "Change Password",
@@ -101,6 +127,20 @@
         "invalidCode": "Invalid code",
         "disabledToast": "MFA disabled",
         "disableFailed": "Failed to disable MFA"
+      },
+      "trustedDevices": {
+        "title": "Trusted devices",
+        "description": "Devices that sign in automatically for 30 days without a password or two-factor code.",
+        "empty": "No trusted devices.",
+        "thisDevice": "This device",
+        "added": "Added",
+        "lastUsed": "Last used",
+        "expires": "Expires",
+        "revoke": "Revoke",
+        "revokeAll": "Revoke all",
+        "revoked": "Trusted device revoked",
+        "revokedAll": "All trusted devices revoked",
+        "revokeError": "Could not revoke the device"
       }
     },
     "connections": {
@@ -135,7 +175,8 @@
       "toastCreateFailed": "Failed to create",
       "toastUpdateFailed": "Failed to update",
       "toastTestSuccess": "Connection successful",
-      "toastTestFailed": "Connection failed"
+      "toastTestFailed": "Connection failed",
+      "unchanged": "(unchanged)"
     },
     "users": {
       "subtitle": "Manage webapp users and roles",
@@ -217,7 +258,9 @@
         "saving": "Saving...",
         "toastSaved": "Retention saved",
         "toastSaveFailed": "Failed to save"
-      }
+      },
+      "requireMfa": "Require MFA (enroll at first login)",
+      "mustChangePassword": "Change password at next logon"
     },
     "youtube": {
       "title": "YouTube Cookies",
@@ -277,6 +320,10 @@
       "templateVariables": "Variables:",
       "and": "and",
       "nowPlaying": "Now playing (music)",
+      "awayStatus": "Notify AFK status changes",
+      "awayTemplate": "AFK message",
+      "backTemplate": "Back message",
+      "awayHint": "Uses the watched channel and style set above.",
       "liveStatsPanel": "Live stats panel (edited every 60s)",
       "statsCommandHint": "The /stats command stays available regardless of these toggles.",
       "botFlows": "Bot flows",
@@ -289,7 +336,13 @@
       "savingReconnecting": "Saving & reconnecting...",
       "toastSaved": "Discord settings saved",
       "toastSaveFailed": "Failed to save",
-      "toastSavedButError": "Saved, but: {{error}}"
+      "toastSavedButError": "Saved, but: {{error}}",
+      "embedStyle": "Embed style (colored card) instead of a plain message",
+      "autoDelete": "Auto-delete notifications after (seconds)",
+      "autoDeleteHint": "0 = keep messages. Removes join/leave, now-playing and /stats messages after the delay to avoid channel clutter (the live stats panel is not affected).",
+      "commandRoles": "Allowed roles for commands",
+      "commandRolesHint": "Empty = everyone can use the commands. Pick roles to restrict who can. Discord admins and the server owner are always allowed.",
+      "commandRolesOffline": "Connect the bot to list its roles."
     },
     "spotify": {
       "title": "Spotify",
@@ -308,6 +361,36 @@
       "saving": "Saving...",
       "toastSaved": "Spotify settings saved",
       "toastSaveFailed": "Failed to save"
+    },
+    "musicCommands": {
+      "title": "Music Bot Commands",
+      "description": "Restrict Music Bot commands to server groups, and enable now-playing notifications in the TeamSpeak channel. Groups are those of the currently selected server.",
+      "noServerHint": "Select a server to list its groups.",
+      "musicGroup": "Group for music commands (!play, !skip, …)",
+      "adminGroup": "Group for admin commands (!move, !moveall, !notif)",
+      "openToAll": "None (open to all)",
+      "notifyNowPlaying": "Announce the current track in the TS channel",
+      "save": "Save",
+      "saving": "Saving...",
+      "toastSaved": "Settings saved",
+      "toastSaveFailed": "Failed to save"
+    },
+    "saml": {
+      "enable": "Enable SSO authentication (SAML)",
+      "autoProvision": "Automatically provision accounts authenticated via SSO",
+      "defaultRole": "Default role for SSO accounts",
+      "idpSsoUrl": "IdP SSO URL",
+      "idpCertificate": "IdP signing certificate",
+      "idpEntityId": "IdP Entity ID",
+      "attrUsername": "Attribute: username",
+      "attrEmail": "Attribute: email",
+      "attrDisplayName": "Attribute: display name",
+      "attrRole": "Attribute: role / group",
+      "roleAdminValue": "Value granting the admin role",
+      "spInfo": "To configure on the IdP side (Authentik):",
+      "spMetadataUrl": "SP metadata URL",
+      "acsUrl": "ACS URL (Assertion Consumer Service)",
+      "saved": "SSO settings saved"
     }
   },
   "channels": {
@@ -340,7 +423,8 @@
     "toastUpdated": "Channel updated",
     "toastUpdateFailed": "Failed to update channel",
     "toastMoved": "Channel moved",
-    "toastMoveFailed": "Failed to move channel"
+    "toastMoveFailed": "Failed to move channel",
+    "dropToRoot": "Drop here to move to top level"
   },
   "clients": {
     "title": "Clients",
@@ -521,7 +605,14 @@
     "deleteServerGroup": "Delete Server Group",
     "deleteConfirm": "Delete \"{{name}}\"?",
     "delete": "Delete",
-    "groupDeleted": "Group deleted"
+    "groupDeleted": "Group deleted",
+    "addMember": "Add member",
+    "addMemberTitle": "Add a member to the group",
+    "removeMember": "Remove from group",
+    "searchClient": "Search a connected client...",
+    "memberAdded": "Member added",
+    "memberRemoved": "Member removed",
+    "memberActionFailed": "Member action failed"
   },
   "tokens": {
     "title": "Privilege Keys",
@@ -599,7 +690,25 @@
     "success": "Success",
     "failed": "Failed",
     "entryCount_one": "{{count}} entry",
-    "entryCount_other": "{{count}} entries"
+    "entryCount_other": "{{count}} entries",
+    "colActions": "Actions",
+    "webBans": "Web bans",
+    "ban": "Ban",
+    "banTitle": "Ban IP address",
+    "banIntro": "Ban this IP:",
+    "banWeb": "Block web login",
+    "banTeamSpeak": "Ban on TeamSpeak (all servers)",
+    "banDuration": "Duration (minutes, 0 = permanent)",
+    "banReason": "Reason (optional)",
+    "banConfirm": "Ban",
+    "banning": "Banning...",
+    "cancel": "Cancel",
+    "banApplied": "Ban applied",
+    "banFailed": "Ban failed",
+    "banRevoked": "Ban revoked",
+    "webBansTitle": "Web-banned IP addresses",
+    "noWebBans": "No web bans.",
+    "permanent": "Permanent"
   },
   "messages": {
     "title": "Offline Messages",
@@ -1003,7 +1112,8 @@
       "selectRunningBot": "Select a running bot first",
       "playingRadio": "Playing radio",
       "playRadioFailed": "Failed to play radio",
-      "stationRemoved": "Station removed"
+      "stationRemoved": "Station removed",
+      "widgetFailed": "Failed to load player widget"
     },
     "playDialog": {
       "title": "Play Music",
