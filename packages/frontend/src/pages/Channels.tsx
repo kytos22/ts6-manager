@@ -309,12 +309,11 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
     <div>
       <div
         className={cn(
-          'relative isolate flex min-h-9 items-center rounded-md border border-transparent px-2 text-sm transition-all group overflow-hidden hover:border-border/60 hover:bg-muted/35',
+          'relative isolate flex min-h-9 items-stretch overflow-hidden rounded-md border border-transparent p-0 text-sm transition-all group hover:border-border/60 hover:bg-muted/35',
           isAdmin && 'cursor-grab active:cursor-grabbing',
           dropOver && 'bg-primary/10 ring-1 ring-primary/40',
           draggedCid === node.cid && 'opacity-40',
         )}
-        style={{ paddingLeft: `${depth * 16 + 4}px` }}
         draggable={isAdmin}
         onDragStart={isAdmin ? handleDragStart : undefined}
         onDragOver={handleDragOver}
@@ -322,9 +321,12 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
         onDrop={handleDrop}
         onDragEnd={handleDragEnd}
       >
-        <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} depth={depth} rightInset={isAdmin ? 120 : 88} />
-        <div className={cn('relative z-10 grid w-full min-w-0 items-stretch', isAdmin ? 'grid-cols-[minmax(0,1fr)_5.5rem_2rem]' : 'grid-cols-[minmax(0,1fr)_5.5rem]')}>
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        <div
+          className="relative isolate flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden py-1 pr-2"
+          style={{ paddingLeft: `${depth * 16 + 4}px` }}
+        >
+        <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} />
+        <div className="relative z-10 flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
         {hasContent ? (
           <button onClick={() => setExpanded(!expanded)} className="rounded p-0.5 hover:bg-muted">
             {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -347,7 +349,8 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
         <div className="min-w-0 flex-1"><div className="truncate font-medium text-foreground/90">{node.channel_name}</div>{node.channel_topic && <div className="truncate text-[10px] leading-3 text-muted-foreground">{node.channel_topic}</div>}</div>
 
         </div>
-        <div className="flex min-w-[5.5rem] items-center justify-end gap-1.5 border-l border-border/50 bg-background/55 px-2 backdrop-blur-[1px]">
+        </div>
+        <div className="relative z-20 flex w-[5.5rem] shrink-0 items-center justify-end gap-1.5 border-l border-border/50 bg-background/90 px-2 backdrop-blur-[1px]">
           <span className="shrink-0 rounded bg-muted/60 px-1.5 py-0.5 font-mono-data text-[9px] text-muted-foreground/70">#{node.cid}</span>
           {node.channel_flag_password === 1 && <Lock className="h-3 w-3 text-amber-400/60" />}
           {(node.total_clients > 0 || clients.length > 0) && (
@@ -358,7 +361,7 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
           )}
         </div>
         {isAdmin && (
-          <div className="flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/50 bg-background/70 backdrop-blur-[1px]">
+          <div className="relative z-20 flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/50 bg-background/95 backdrop-blur-[1px]">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -381,7 +384,6 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
             </DropdownMenu>
           </div>
         )}
-        </div>
       </div>
 
       {expanded && (
@@ -688,7 +690,7 @@ export default function Channels() {
         <div className="flex flex-wrap items-center gap-2"><div className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs"><Hash className="h-3.5 w-3.5 text-primary" /><span className="font-semibold">{channelCount}</span><span className="text-muted-foreground">channels</span></div><div className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs"><Users className="h-3.5 w-3.5 text-emerald-400" /><span className="font-semibold">{totalClients}</span><span className="text-muted-foreground">online</span></div><div className="hidden items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs sm:flex"><Volume2 className="h-3.5 w-3.5 text-violet-400" /><span className="font-semibold">{occupiedChannels}</span><span className="text-muted-foreground">active</span></div><div className="flex items-center rounded-lg border bg-card/60 p-0.5"><Button type="button" size="sm" variant={narrowView ? 'secondary' : 'ghost'} className="h-7 px-2 text-xs" onClick={() => changeViewMode(true)} title="Use a TeamSpeak-like narrow server tree"><PanelLeft className="mr-1 h-3.5 w-3.5" />TS6 narrow</Button><Button type="button" size="sm" variant={!narrowView ? 'secondary' : 'ghost'} className="h-7 px-2 text-xs" onClick={() => changeViewMode(false)} title="Use all available width"><Maximize2 className="mr-1 h-3.5 w-3.5" />Full</Button></div>{isAdmin && <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="mr-1 h-4 w-4" />Create Channel</Button>}</div>
       </div>
 
-      <Card className={cn('overflow-hidden border-border/70 shadow-sm transition-[max-width] duration-200', narrowView && 'mx-auto max-w-[36rem]')}>
+      <Card className={cn('w-full overflow-hidden border-border/70 shadow-sm transition-[max-width] duration-200', narrowView && 'mx-auto max-w-[36rem]')}>
         <CardHeader className="border-b bg-gradient-to-r from-primary/[0.06] via-card to-card px-4 py-3">
           <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-sm font-medium">
             <span className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10"><Volume2 className="h-4 w-4 text-primary" /></span><span>TeamSpeak channel tree</span></span>
