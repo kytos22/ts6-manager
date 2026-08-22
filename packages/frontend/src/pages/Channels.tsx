@@ -193,28 +193,30 @@ function ClientEntry({
       {client.client_away === 1 && <Badge variant="warning" className="text-[8px] px-1 py-0 h-3.5">Away</Badge>}
       {client.client_input_muted === 1 && !client.client_away && <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5">Muted</Badge>}
       {isAdmin && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="p-0.5 rounded opacity-0 group-hover/client:opacity-100 data-[state=open]:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => event.stopPropagation()}
-              aria-label={`Actions for ${client.client_nickname}`}
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onSelect={() => onAction('manage', client)}><UserRoundCog className="h-3.5 w-3.5 mr-2" />Manage client</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onAction('move', client)}><Move className="h-3.5 w-3.5 mr-2" />Move to channel</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onAction('message', client)}><MessageSquare className="h-3.5 w-3.5 mr-2" />Private message</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onAction('poke', client)}><Zap className="h-3.5 w-3.5 mr-2" />Poke</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onAction('kick', client)}><LogOut className="h-3.5 w-3.5 mr-2" />Kick from server</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onAction('ban', client)}><Ban className="h-3.5 w-3.5 mr-2" />Ban for 1 hour</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="ml-1 flex w-7 shrink-0 self-stretch items-center justify-center border-l border-border/40 bg-background/35">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/client:opacity-100 data-[state=open]:opacity-100"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                aria-label={`Actions for ${client.client_nickname}`}
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={() => onAction('manage', client)}><UserRoundCog className="h-3.5 w-3.5 mr-2" />Manage client</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => onAction('move', client)}><Move className="h-3.5 w-3.5 mr-2" />Move to channel</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onAction('message', client)}><MessageSquare className="h-3.5 w-3.5 mr-2" />Private message</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onAction('poke', client)}><Zap className="h-3.5 w-3.5 mr-2" />Poke</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => onAction('kick', client)}><LogOut className="h-3.5 w-3.5 mr-2" />Kick from server</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onAction('ban', client)}><Ban className="h-3.5 w-3.5 mr-2" />Ban for 1 hour</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       )}
     </div>
   );
@@ -251,7 +253,8 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
     return (
       <div className="group/spacer relative isolate flex min-h-7 items-center overflow-hidden rounded-md px-3 py-1" title={isAdmin ? node.channel_name : undefined}>
         <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} depth={depth} subtle />
-        <div className="relative z-10 flex w-full items-center">
+        <div className="relative z-10 flex w-full min-w-0 items-center">
+        <div className="min-w-0 flex-1">
         {spacer.mode === 'blank' && !spacer.content && <div className="h-2 w-full" />}
         {spacer.mode === 'blank' && spacer.content && (markdownRule
           ? <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
@@ -260,7 +263,8 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
         {spacer.mode === 'center' && <div className="w-full px-10 text-center text-xs font-semibold uppercase tracking-[0.18em] text-primary/90">{spacer.content}</div>}
         {spacer.mode === 'left' && <div className="w-full pr-10 text-left text-xs font-semibold tracking-wide text-foreground/80">{spacer.content}</div>}
         {spacer.mode === 'right' && <div className="w-full pl-10 pr-8 text-right text-xs font-semibold tracking-wide text-foreground/80">{spacer.content}</div>}
-        {isAdmin && <DropdownMenu><DropdownMenuTrigger asChild><button className="absolute right-0 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/spacer:opacity-100 data-[state=open]:opacity-100" aria-label={`Actions for spacer ${node.cid}`}><MoreHorizontal className="h-3.5 w-3.5" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48"><DropdownMenuItem onSelect={() => onEdit(node)}><Pencil className="mr-2 h-3.5 w-3.5" />Edit spacer</DropdownMenuItem><DropdownMenuItem onSelect={() => onPermissions(node.cid)}><KeyRound className="mr-2 h-3.5 w-3.5" />Permissions</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(node.cid, node.channel_name)}><Trash2 className="mr-2 h-3.5 w-3.5" />Delete spacer</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
+        </div>
+        {isAdmin && <div className="ml-1 flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/40 bg-background/35"><DropdownMenu><DropdownMenuTrigger asChild><button className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/spacer:opacity-100 data-[state=open]:opacity-100" aria-label={`Actions for spacer ${node.cid}`}><MoreHorizontal className="h-3.5 w-3.5" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48"><DropdownMenuItem onSelect={() => onEdit(node)}><Pencil className="mr-2 h-3.5 w-3.5" />Edit spacer</DropdownMenuItem><DropdownMenuItem onSelect={() => onPermissions(node.cid)}><KeyRound className="mr-2 h-3.5 w-3.5" />Permissions</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(node.cid, node.channel_name)}><Trash2 className="mr-2 h-3.5 w-3.5" />Delete spacer</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>}
         </div>
       </div>
     );
@@ -319,7 +323,8 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
         onDragEnd={handleDragEnd}
       >
         <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} depth={depth} />
-        <div className="relative z-10 flex w-full items-center gap-1.5">
+        <div className="relative z-10 flex w-full min-w-0 items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
         {hasContent ? (
           <button onClick={() => setExpanded(!expanded)} className="rounded p-0.5 hover:bg-muted">
             {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -343,29 +348,6 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
 
         <span className="shrink-0 rounded bg-muted/60 px-1.5 py-0.5 font-mono-data text-[9px] text-muted-foreground/60">#{node.cid}</span>
 
-        {isAdmin && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="p-1 rounded opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => event.stopPropagation()}
-                aria-label={`Actions for ${node.channel_name}`}
-              >
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem onSelect={() => onEdit(node)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit channel</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onMessage(node)}><MessageSquare className="h-3.5 w-3.5 mr-2" />Send channel message</DropdownMenuItem>
-              {clients.length > 0 && <DropdownMenuItem onSelect={() => onBulkMove(node)}><UserRoundCog className="h-3.5 w-3.5 mr-2" />Move all clients</DropdownMenuItem>}
-              <DropdownMenuItem onSelect={() => onPermissions(node.cid)}><KeyRound className="h-3.5 w-3.5 mr-2" />Permissions</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(node.cid, node.channel_name)}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete channel</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-
         <div className="flex items-center gap-1.5 ml-1">
           {node.channel_flag_password === 1 && <Lock className="h-3 w-3 text-amber-400/60" />}
           {(node.total_clients > 0 || clients.length > 0) && (
@@ -375,6 +357,31 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
             </span>
           )}
         </div>
+        </div>
+        {isAdmin && (
+          <div className="ml-1 flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/40 bg-background/35">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 data-[state=open]:opacity-100"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label={`Actions for ${node.channel_name}`}
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onSelect={() => onEdit(node)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit channel</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onMessage(node)}><MessageSquare className="h-3.5 w-3.5 mr-2" />Send channel message</DropdownMenuItem>
+                {clients.length > 0 && <DropdownMenuItem onSelect={() => onBulkMove(node)}><UserRoundCog className="h-3.5 w-3.5 mr-2" />Move all clients</DropdownMenuItem>}
+                <DropdownMenuItem onSelect={() => onPermissions(node.cid)}><KeyRound className="h-3.5 w-3.5 mr-2" />Permissions</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(node.cid, node.channel_name)}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete channel</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
         </div>
       </div>
 

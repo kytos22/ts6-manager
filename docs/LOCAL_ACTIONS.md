@@ -11,6 +11,10 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
+- Channel, spacer, and connected-client rows reserve a fixed action rail on
+  their right edge. Names, topics, badges, IDs, and presence indicators remain
+  in a separate flexible column, so hover actions never overlap row content in
+  either full-width or TS6 narrow mode.
 - The media pipeline now uses a pinned yt-dlp nightly binary with SHA-256
   verification, shared command execution, coordinated hard timeouts and full
   diagnostics. Progressive playback keeps memory bounded for long media,
