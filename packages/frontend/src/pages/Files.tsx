@@ -108,7 +108,6 @@ export default function Files() {
       setShowMkdir(false);
       setNewDirName('');
       qc.invalidateQueries({ queryKey: ['files', c, s, selectedCid, currentPath] });
-      qc.invalidateQueries({ queryKey: ['file-summaries', c, s] });
     },
     onError: () => toast.error(t('files.toastDirCreateFailed')),
   });
@@ -119,7 +118,6 @@ export default function Files() {
       toast.success(t('files.toastFileDeleted'));
       setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: ['files', c, s, selectedCid, currentPath] });
-      qc.invalidateQueries({ queryKey: ['file-summaries', c, s] });
     },
     onError: () => toast.error(t('files.toastFileDeleteFailed')),
   });
