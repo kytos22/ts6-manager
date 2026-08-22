@@ -11,10 +11,12 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
-- Channel, spacer, and connected-client rows reserve a fixed action rail on
-  their right edge. Names, topics, badges, IDs, and presence indicators remain
-  in a separate flexible column, so hover actions never overlap row content in
-  either full-width or TS6 narrow mode.
+- Channel rows use three independent grid columns: flexible channel identity,
+  fixed-width properties (ID, password, population), and fixed-width actions.
+  Channel banners stop at the identity boundary, while spacer and connected-
+  client rows retain their own reserved action rail. Hover actions therefore
+  never overlap content. The complete TS6 narrow card is horizontally centered
+  in the available panel area.
 - The media pipeline now uses a pinned yt-dlp nightly binary with SHA-256
   verification, shared command execution, coordinated hard timeouts and full
   diagnostics. Progressive playback keeps memory bounded for long media,

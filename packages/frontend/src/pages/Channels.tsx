@@ -129,7 +129,7 @@ function buildTree(channels: any[]): ChannelNode[] {
   return roots;
 }
 
-function ChannelBannerBackground({ node, depth = 0, subtle = false }: { node: ChannelNode; depth?: number; subtle?: boolean }) {
+function ChannelBannerBackground({ node, depth = 0, subtle = false, rightInset = 0 }: { node: ChannelNode; depth?: number; subtle?: boolean; rightInset?: number }) {
   const configuredUrl = node.channel_banner_gfx_url?.trim() || '';
   const [source, setSource] = useState(configuredUrl);
   const [failed, setFailed] = useState(false);
@@ -145,7 +145,7 @@ function ChannelBannerBackground({ node, depth = 0, subtle = false }: { node: Ch
       decoding="async"
       referrerPolicy="no-referrer"
       className="pointer-events-none absolute bottom-0 right-0 top-0 z-0 h-full object-center"
-      style={{ objectFit, objectPosition: '50% 50%', left: `${inset}px`, width: `calc(100% - ${inset}px)` }}
+      style={{ objectFit, objectPosition: '50% 50%', left: `${inset}px`, right: `${rightInset}px`, width: 'auto' }}
       onError={() => {
         if (source.startsWith('https://') && window.location.protocol === 'http:') {
           setSource(`http://${source.slice('https://'.length)}`);
@@ -154,7 +154,7 @@ function ChannelBannerBackground({ node, depth = 0, subtle = false }: { node: Ch
         }
       }}
     />
-    <div className={cn('pointer-events-none absolute bottom-0 right-0 top-0 z-0 bg-gradient-to-r from-background/90 via-background/55 to-background/80', subtle && 'from-background/75 via-background/30 to-background/70')} style={{ left: `${inset}px` }} />
+    <div className={cn('pointer-events-none absolute bottom-0 right-0 top-0 z-0 bg-gradient-to-r from-background/90 via-background/55 to-background/80', subtle && 'from-background/75 via-background/30 to-background/70')} style={{ left: `${inset}px`, right: `${rightInset}px` }} />
   </>;
 }
 
@@ -252,7 +252,7 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
     const markdownRule = /^([-_*=_─━—·•])\1{2,}$/.test(lineContent);
     return (
       <div className="group/spacer relative isolate flex min-h-7 items-center overflow-hidden rounded-md px-3 py-1" title={isAdmin ? node.channel_name : undefined}>
-        <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} depth={depth} subtle />
+        <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} depth={depth} subtle rightInset={isAdmin ? 32 : 0} />
         <div className="relative z-10 flex w-full min-w-0 items-center">
         <div className="min-w-0 flex-1">
         {spacer.mode === 'blank' && !spacer.content && <div className="h-2 w-full" />}
@@ -322,8 +322,8 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
         onDrop={handleDrop}
         onDragEnd={handleDragEnd}
       >
-        <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} depth={depth} />
-        <div className="relative z-10 flex w-full min-w-0 items-center">
+        <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} depth={depth} rightInset={isAdmin ? 120 : 88} />
+        <div className={cn('relative z-10 grid w-full min-w-0 items-stretch', isAdmin ? 'grid-cols-[minmax(0,1fr)_5.5rem_2rem]' : 'grid-cols-[minmax(0,1fr)_5.5rem]')}>
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
         {hasContent ? (
           <button onClick={() => setExpanded(!expanded)} className="rounded p-0.5 hover:bg-muted">
@@ -346,9 +346,9 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
 
         <div className="min-w-0 flex-1"><div className="truncate font-medium text-foreground/90">{node.channel_name}</div>{node.channel_topic && <div className="truncate text-[10px] leading-3 text-muted-foreground">{node.channel_topic}</div>}</div>
 
-        <span className="shrink-0 rounded bg-muted/60 px-1.5 py-0.5 font-mono-data text-[9px] text-muted-foreground/60">#{node.cid}</span>
-
-        <div className="flex items-center gap-1.5 ml-1">
+        </div>
+        <div className="flex min-w-[5.5rem] items-center justify-end gap-1.5 border-l border-border/50 bg-background/55 px-2 backdrop-blur-[1px]">
+          <span className="shrink-0 rounded bg-muted/60 px-1.5 py-0.5 font-mono-data text-[9px] text-muted-foreground/70">#{node.cid}</span>
           {node.channel_flag_password === 1 && <Lock className="h-3 w-3 text-amber-400/60" />}
           {(node.total_clients > 0 || clients.length > 0) && (
             <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground font-mono-data">
@@ -357,9 +357,8 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
             </span>
           )}
         </div>
-        </div>
         {isAdmin && (
-          <div className="ml-1 flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/40 bg-background/35">
+          <div className="flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/50 bg-background/70 backdrop-blur-[1px]">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -689,7 +688,7 @@ export default function Channels() {
         <div className="flex flex-wrap items-center gap-2"><div className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs"><Hash className="h-3.5 w-3.5 text-primary" /><span className="font-semibold">{channelCount}</span><span className="text-muted-foreground">channels</span></div><div className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs"><Users className="h-3.5 w-3.5 text-emerald-400" /><span className="font-semibold">{totalClients}</span><span className="text-muted-foreground">online</span></div><div className="hidden items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs sm:flex"><Volume2 className="h-3.5 w-3.5 text-violet-400" /><span className="font-semibold">{occupiedChannels}</span><span className="text-muted-foreground">active</span></div><div className="flex items-center rounded-lg border bg-card/60 p-0.5"><Button type="button" size="sm" variant={narrowView ? 'secondary' : 'ghost'} className="h-7 px-2 text-xs" onClick={() => changeViewMode(true)} title="Use a TeamSpeak-like narrow server tree"><PanelLeft className="mr-1 h-3.5 w-3.5" />TS6 narrow</Button><Button type="button" size="sm" variant={!narrowView ? 'secondary' : 'ghost'} className="h-7 px-2 text-xs" onClick={() => changeViewMode(false)} title="Use all available width"><Maximize2 className="mr-1 h-3.5 w-3.5" />Full</Button></div>{isAdmin && <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="mr-1 h-4 w-4" />Create Channel</Button>}</div>
       </div>
 
-      <Card className={cn('overflow-hidden border-border/70 shadow-sm transition-[max-width] duration-200', narrowView && 'max-w-[36rem]')}>
+      <Card className={cn('overflow-hidden border-border/70 shadow-sm transition-[max-width] duration-200', narrowView && 'mx-auto max-w-[36rem]')}>
         <CardHeader className="border-b bg-gradient-to-r from-primary/[0.06] via-card to-card px-4 py-3">
           <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-sm font-medium">
             <span className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10"><Volume2 className="h-4 w-4 text-primary" /></span><span>TeamSpeak channel tree</span></span>
