@@ -8,6 +8,56 @@ Web-based management interface for TeamSpeak servers. Control virtual servers, c
 Built on the **WebQuery HTTP API** (the ServerQuery replacement in modern TeamSpeak builds). Telnet is not used or supported.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
+![Fork](https://img.shields.io/badge/fork-kytos22-22c55e)
+![Languages](https://img.shields.io/badge/UI-EN%20%7C%20ES%20%7C%20FR%20%7C%20DE%20%7C%20IT-4f46e5)
+![Tests](https://img.shields.io/badge/tests-65%20passing-brightgreen)
+
+## About this fork
+
+This fork keeps the original TS6 Manager architecture while extending it into
+a more complete day-to-day TeamSpeak administration panel. The changes are
+designed to remain reproducible from source and to preserve existing server,
+user, bot, icon, and SQLite data during upgrades.
+
+### Highlights added by this fork
+
+- **Expanded channel management:** native TeamSpeak spacer rendering, channel
+  banners, narrow TS-style tree mode, client drag-and-drop, client actions,
+  advanced codec/quality/limits/encryption settings, messages, permissions,
+  and safe bulk moves.
+- **Expanded client management:** move, message, poke, kick, timed ban, server
+  and channel group assignment, direct permissions, profile description,
+  talker state, technical connection details, and personal icon assignment.
+- **Complete icon workflow:** cached TeamSpeak icons throughout the UI plus an
+  icon manager for upload, assignment, replacement, removal, and deletion.
+- **Groups and permissions:** create, rename, copy, delete, assign members,
+  inspect assignments, edit icons, and jump directly to the relevant
+  permission layer for server and channel groups.
+- **Safer operations:** encrypted snapshots, keep-files restore protection,
+  temporary passwords, API-key and SSH Query management, health checks,
+  alerts, live events, and an administrator audit trail.
+- **Improved log viewer:** correct TeamSpeak pagination for 250/500-line
+  requests, selectable timezone, `DD/MM/YYYY` dates, visual level badges, and
+  virtual-server identification.
+- **Responsive UI controls:** persistent 90–140% interface scale, compact
+  selector beside the theme toggle, responsive menus, and balanced layouts.
+- **Reliable media playback:** pinned yt-dlp nightly builds with integrity
+  verification, coordinated timeouts, progressive constant-memory playback,
+  native Opus encoding with fallback, radio support, playlist refresh, and
+  Spotify-link metadata resolution through YouTube.
+- **Stronger authentication:** configurable password policy, TOTP MFA with
+  recovery codes, optional SAML SSO, role enforcement, per-server viewer
+  assignments, and last-administrator/self-lockout protection.
+- **Optional integrations:** Discord commands, notifications and live stats;
+  Spotify metadata lookup; and an offline GeoIP connection journal. Discord,
+  Spotify, and SAML are disabled until explicitly configured by an admin.
+- **Multilingual interface:** English, Spanish, French, German, and Italian,
+  with a persistent per-user language choice.
+
+The detailed maintenance catalogue is available in
+[`docs/LOCAL_ACTIONS.md`](docs/LOCAL_ACTIONS.md). The current integration was
+validated with backend and frontend production builds plus **65 automated
+tests**.
 
 ## Screenshots
 
@@ -36,25 +86,29 @@ Get started quickly with pre-built flow templates. Covers common use cases like 
 ### Server Management
 - Dashboard with live server stats, bandwidth graph, and capacity overview
 - Virtual server list with start/stop controls
-- Channel tree with drag-and-drop ordering
-- Client list with kick, ban, move, poke actions
-- Server & channel group management
+- TS-style channel tree with spacers, banners, narrow mode, and client movement
+- Client list with full profile, group, permission, icon, and moderation actions
+- Server & channel group management with copy, membership, icons, and permissions
 - Permission editor (server, channel, client, group-level)
 - Ban list management
 - Token / privilege key management
 - Complaint viewer
 - Offline message system
-- Server log viewer with filtering
+- Server log viewer with filtering, timezone selection, pagination, and server labels
 - Channel file browser with upload/download
+- Central icon manager with cached TeamSpeak file-transfer support
+- Encrypted snapshots, operational health, alerts, live events, and audit trail
 - Instance-level settings
 
 ### Music Bots
 - Multiple bots per server, each with independent queue and playback
 - Radio station streaming with ICY metadata and live title updates
-- YouTube playback via yt-dlp (search, download, queue)
+- YouTube playback via pinned yt-dlp builds (search, progressive playback, download, queue)
+- Spotify track and album links resolved to matching YouTube audio
 - Music library management (upload, organize, playlists)
 - Volume control, pause, skip, previous, shuffle, repeat
-- Stereo audio support with stable 20ms pacing
+- Native Opus encoding with safe fallback and stable 20ms stereo pacing
+- Constant-memory progressive streaming for long media
 - Auto-reconnect with exponential backoff on disconnect
 - In-channel text commands for hands-free control
 - Music request history tracking
@@ -91,6 +145,10 @@ Get started quickly with pre-built flow templates. Covers common use cases like 
 - JWT access + refresh token rotation with reuse detection
 - Role-based access control (admin / viewer)
 - Per-server access control for multi-tenant setups
+- Configurable password policy
+- TOTP multi-factor authentication with recovery codes
+- Optional SAML single sign-on with auto-provisioning controls
+- Last-administrator and self-lockout protection
 - WebQuery command whitelist in bot flows (blocks destructive commands)
 - Authenticated WebSocket connections
 - Password complexity requirements
@@ -98,6 +156,10 @@ Get started quickly with pre-built flow templates. Covers common use cases like 
 ### Settings & Administration
 - yt-dlp cookie file management for accessing age-restricted or member-only YouTube content
 - Upload cookies via file or paste directly in the UI
+- Per-user language selection: English, Spanish, French, German, and Italian
+- Persistent interface scale from 90% to 140%
+- Optional Discord, Spotify, and SAML configuration
+- Connection journal retention and offline GeoIP display
 - Admin-only settings panel
 
 ## Architecture
@@ -187,6 +249,10 @@ docker compose -f docker-compose.local.yml up -d --build
 this checkout, so new installations receive the fork's complete feature set.
 The standard `docker-compose.yml` intentionally continues to reference the
 upstream prebuilt images.
+
+> To install this fork's enhancements, build with `docker-compose.local.yml`.
+> Running the standard compose file uses upstream prebuilt images and therefore
+> does not include the fork-only changes.
 
 See [`docs/LOCAL_ACTIONS.md`](docs/LOCAL_ACTIONS.md) for the full catalogue of
 the management, security, icon, logging, client, channel, and interface changes

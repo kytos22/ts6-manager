@@ -11,6 +11,31 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
+- The media pipeline now uses a pinned yt-dlp nightly binary with SHA-256
+  verification, shared command execution, coordinated hard timeouts and full
+  diagnostics. Progressive playback keeps memory bounded for long media,
+  prefers native Opus when available, and retains the JavaScript encoder as a
+  fallback. Existing radio, direct URL, separate YouTube audio/video stream,
+  queue, playlist, and reconnect behavior is preserved.
+- Spotify track and album links can be resolved through the Spotify metadata
+  API and matched to YouTube for playback. The integration is disabled until
+  credentials are configured and never attempts to download audio from
+  Spotify itself.
+- Authentication includes a configurable password policy, TOTP MFA with
+  recovery codes, optional SAML SSO with one-time code handoff and assertion
+  validation, and persistent per-user language selection. SAML remains
+  disabled by default so existing local accounts continue to work unchanged.
+- The UI supports English, Spanish, French, German, and Italian. Translation
+  infrastructure and dictionaries are maintained without replacing the
+  customized Channels, Clients, Operations, icon, logging, and scale behavior.
+- The connection journal records web and TeamSpeak connection events with
+  offline GeoIP lookup and configurable retention. IP visibility and journal
+  administration remain restricted to administrators.
+- Optional Discord commands, notifications and live statistics are available
+  from Settings. Discord and Spotify integrations are both disabled by default
+  and do not connect externally until an administrator supplies credentials
+  and enables them.
+
 - Channels has a denser client-like visual hierarchy with live summary cards,
   clearer channel/client states and native spacer interpretation. Only root,
   permanent channels qualify; `[cspacer]`, `[lspacer]`, `[rspacer]`,
