@@ -4,6 +4,11 @@ const base = (configId: number, sid: number) =>
   `/servers/${configId}/vs/${sid}/files`;
 
 export const filesApi = {
+  summaries: (configId: number, sid: number, cids: number[]) =>
+    api.get(`${base(configId, sid)}/summary`, {
+      params: { cids: cids.join(',') },
+      timeout: 60_000,
+    }).then((r) => r.data),
   list: (configId: number, sid: number, cid: number, path = '/') =>
     api.get(`${base(configId, sid)}/${cid}`, { params: { path } }).then((r) => r.data),
   createDir: (configId: number, sid: number, cid: number, dirname: string) =>

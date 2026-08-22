@@ -16,7 +16,7 @@ import { PageLoader } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { cn, formatBytes } from '@/lib/utils';
 import {
-  FolderOpen, File, Folder, ArrowLeft, FolderPlus, Trash2, Hash, HardDrive, AlertTriangle,
+  FolderOpen, File, Folder, ArrowLeft, FolderPlus, Trash2, Hash, HardDrive, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -25,6 +25,14 @@ interface FileEntry {
   size: number;
   datetime: number;
   type: number; // TeamSpeak: 0 = directory, 1 = file
+}
+
+interface ChannelFileSummary {
+  cid: number;
+  fileCount?: number;
+  folderCount?: number;
+  totalSize?: number;
+  unavailable?: boolean;
 }
 
 export default function Files() {
@@ -52,6 +60,22 @@ export default function Files() {
       name: ch.channel_name,
     }));
   }, [channelData]);
+
+  const channelIds = useMemo(() => channels.map((channel) => channel.cid), [channels]);
+  const { data: summaryData, isLoading: loadingSummaries, isFetching: fetchingSummaries } = useQuery({
+    queryKey: ['file-summaries', c, s, channelIds.join(',')],
+    queryFn: () => filesApi.summaries(c!, s!, channelIds),
+    enabled: !!c && !!s && channelIds.length > 0,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const summariesByChannel = useMemo(() => {
+    const map = new Map<number, ChannelFileSummary>();
+    if (!Array.isArray(summaryData)) return map;
+    for (const summary of summaryData) map.set(Number(summary.cid), summary);
+    return map;
+  }, [summaryData]);
 
   // Fetch files in selected channel + path
   const { data: fileData, isLoading: loadingFiles, error: filesError } = useQuery({
@@ -82,6 +106,7 @@ export default function Files() {
       setShowMkdir(false);
       setNewDirName('');
       qc.invalidateQueries({ queryKey: ['files', c, s, selectedCid, currentPath] });
+      qc.invalidateQueries({ queryKey: ['file-summaries', c, s] });
     },
     onError: () => toast.error(t('files.toastDirCreateFailed')),
   });
@@ -92,6 +117,7 @@ export default function Files() {
       toast.success(t('files.toastFileDeleted'));
       setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: ['files', c, s, selectedCid, currentPath] });
+      qc.invalidateQueries({ queryKey: ['file-summaries', c, s] });
     },
     onError: () => toast.error(t('files.toastFileDeleteFailed')),
   });
@@ -150,27 +176,42 @@ export default function Files() {
         {/* Channel Selector */}
         <Card className="col-span-3">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Hash className="h-3.5 w-3.5" /> {t('files.channels')}
+            <CardTitle className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-1.5"><Hash className="h-3.5 w-3.5" /> {t('files.channels')}</span>
+              {fetchingSummaries && <RefreshCw className="h-3 w-3 animate-spin text-sky-400" aria-label={t('files.summaryLoading')} />}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <ScrollArea className="h-[500px]">
               <div className="p-2 space-y-0.5">
-                {channels.map((ch) => (
-                  <button
+                {channels.map((ch) => {
+                  const summary = summariesByChannel.get(ch.cid);
+                  return <button
                     key={ch.cid}
                     onClick={() => { setSelectedCid(ch.cid); setCurrentPath('/'); }}
                     className={cn(
-                      'w-full text-left px-2.5 py-1.5 rounded-md text-sm transition-colors truncate',
+                      'w-full rounded-md px-2.5 py-2 text-left text-sm transition-colors',
                       selectedCid === ch.cid
                         ? 'bg-primary/10 text-primary'
                         : 'text-foreground hover:bg-muted/50',
                     )}
                   >
-                    {ch.name}
-                  </button>
-                ))}
+                    <span className="block truncate">{ch.name}</span>
+                    <span className="mt-1 flex min-h-3.5 items-center gap-2 font-mono-data text-[9px] text-muted-foreground/80">
+                      {loadingSummaries && !summary ? (
+                        <span>{t('files.summaryLoading')}</span>
+                      ) : summary?.unavailable ? (
+                        <span className="text-amber-400/80">{t('files.summaryUnavailable')}</span>
+                      ) : (
+                        <>
+                          <span className="flex items-center gap-0.5" title={t('files.summaryFiles')}><File className="h-3 w-3" />{summary?.fileCount ?? 0}</span>
+                          <span className="flex items-center gap-0.5" title={t('files.summaryFolders')}><Folder className="h-3 w-3" />{summary?.folderCount ?? 0}</span>
+                          <span className="ml-auto flex items-center gap-0.5" title={t('files.summarySize')}><HardDrive className="h-3 w-3" />{formatBytes(summary?.totalSize ?? 0)}</span>
+                        </>
+                      )}
+                    </span>
+                  </button>;
+                })}
                 {channels.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-4">{t('files.noChannels')}</p>
                 )}

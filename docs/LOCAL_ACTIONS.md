@@ -11,6 +11,11 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
+- File Manager channel rows show recursively calculated file count, folder
+  count, and total file size before a channel is opened. A protected backend
+  summary endpoint walks each channel sequentially on the existing SSH Query
+  session, enforces depth/entry limits, coalesces duplicate scans, caches for 30
+  seconds, and invalidates the affected channel after mkdir/delete operations.
 - The Channels card header replaces the spacer count with a live countdown to
   the next ten-second channel/client refresh and switches to a spinning
   `Refreshing...` state while either query is active. TS6 narrow grows from 36
