@@ -23,7 +23,7 @@ interface FileEntry {
   name: string;
   size: number;
   datetime: number;
-  type: number; // 0 = file, 1 = directory
+  type: number; // TeamSpeak: 0 = directory, 1 = file
 }
 
 export default function Files() {
@@ -68,7 +68,7 @@ export default function Files() {
       type: Number(f.type),
     })).sort((a: FileEntry, b: FileEntry) => {
       // Directories first, then alphabetical
-      if (a.type !== b.type) return b.type - a.type;
+      if (a.type !== b.type) return a.type - b.type;
       return a.name.localeCompare(b.name);
     });
   }, [fileData]);
@@ -95,7 +95,7 @@ export default function Files() {
   });
 
   const navigateTo = (entry: FileEntry) => {
-    if (entry.type === 1) {
+    if (entry.type === 0) {
       const newPath = currentPath === '/' ? `/${entry.name}` : `${currentPath}/${entry.name}`;
       setCurrentPath(newPath);
     }
@@ -255,12 +255,12 @@ export default function Files() {
                         key={file.name}
                         className={cn(
                           'grid grid-cols-12 gap-2 px-4 py-2 text-sm items-center group hover:bg-muted/20 transition-colors',
-                          file.type === 1 && 'cursor-pointer',
+                          file.type === 0 && 'cursor-pointer',
                         )}
                         onClick={() => navigateTo(file)}
                       >
                         <div className="col-span-6 flex items-center gap-2 truncate">
-                          {file.type === 1 ? (
+                          {file.type === 0 ? (
                             <Folder className="h-4 w-4 text-primary/70 shrink-0" />
                           ) : (
                             <File className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -268,7 +268,7 @@ export default function Files() {
                           <span className="truncate">{file.name}</span>
                         </div>
                         <div className="col-span-2 text-right text-xs text-muted-foreground font-mono-data">
-                          {file.type === 0 ? formatBytes(file.size) : '-'}
+                          {file.type === 1 ? formatBytes(file.size) : '-'}
                         </div>
                         <div className="col-span-3 text-xs text-muted-foreground font-mono-data">
                           {formatDate(file.datetime)}

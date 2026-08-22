@@ -48,10 +48,58 @@ clientRoutes.get('/:clid', async (req: Request, res: Response, next) => {
   } catch (err) { next(err); }
 });
 
+clientRoutes.put('/:clid', requireRole('admin'), async (req: Request, res: Response, next) => {
+  try {
+    const clid = Number(req.params.clid);
+    const cldbid = Number(req.body.cldbid);
+    if (!Number.isInteger(clid) || clid <= 0 || !Number.isInteger(cldbid) || cldbid <= 0) {
+      res.status(400).json({ error: 'Valid client and database IDs are required' });
+      return;
+    }
+
+    const hasDescription = Object.prototype.hasOwnProperty.call(req.body, 'client_description');
+    const hasTalker = Object.prototype.hasOwnProperty.call(req.body, 'client_is_talker');
+    if (!hasDescription && !hasTalker) {
+      res.status(400).json({ error: 'No supported client fields were provided' });
+      return;
+    }
+
+    if (hasDescription) {
+      const description = String(req.body.client_description ?? '');
+      if (description.length > 200) {
+        res.status(400).json({ error: 'Client description must be 200 characters or fewer' });
+        return;
+      }
+      await getClient(req).execute(getSid(req), 'clientdbedit', {
+        cldbid: String(cldbid), client_description: description,
+      });
+    }
+
+    if (hasTalker) {
+      const talker = Number(req.body.client_is_talker);
+      if (talker !== 0 && talker !== 1) {
+        res.status(400).json({ error: 'Talker must be either 0 or 1' });
+        return;
+      }
+      await getClient(req).execute(getSid(req), 'clientedit', {
+        clid: String(clid), client_is_talker: String(talker),
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
 clientRoutes.post('/:clid/kick', requireRole('admin'), async (req: Request, res: Response, next) => {
   try {
+    const clid = Number(req.params.clid);
+    const reasonid = Number(req.body.reasonid ?? 5);
+    if (!Number.isInteger(clid) || clid <= 0 || ![4, 5].includes(reasonid)) {
+      res.status(400).json({ error: 'A valid connected client and kick type are required' });
+      return;
+    }
     const result = await getClient(req).execute(getSid(req), 'clientkick', {
-      clid: String(req.params.clid), reasonid: req.body.reasonid || 5, reasonmsg: req.body.reasonmsg,
+      clid: String(clid), reasonid: String(reasonid), reasonmsg: req.body.reasonmsg,
     });
     res.json(result);
   } catch (err) { next(err); }

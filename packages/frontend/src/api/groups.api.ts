@@ -15,6 +15,8 @@ export const groupsApi = {
     api.delete(`${sgBase(configId, sid)}/${sgid}`),
   renameServerGroup: (configId: number, sid: number, sgid: number, name: string) =>
     api.put(`${sgBase(configId, sid)}/${sgid}`, { name }).then((r) => r.data),
+  copyServerGroup: (configId: number, sid: number, sgid: number, name: string) =>
+    api.post(`${sgBase(configId, sid)}/${sgid}/copy`, { tsgid: 0, name, type: 1 }).then((r) => r.data),
   serverGroupMembers: (configId: number, sid: number, sgid: number) =>
     api.get(`${sgBase(configId, sid)}/${sgid}/members`).then((r) => r.data),
   addServerGroupMember: (configId: number, sid: number, sgid: number, cldbid: number) =>
@@ -31,6 +33,32 @@ export const groupsApi = {
     api.post(cgBase(configId, sid), { name }).then((r) => r.data),
   deleteChannelGroup: (configId: number, sid: number, cgid: number) =>
     api.delete(`${cgBase(configId, sid)}/${cgid}`),
+  renameChannelGroup: (configId: number, sid: number, cgid: number, name: string) =>
+    api.put(`${cgBase(configId, sid)}/${cgid}`, { name }).then((r) => r.data),
+  copyChannelGroup: async (configId: number, sid: number, cgid: number, name: string) => {
+    const created = await api.post(cgBase(configId, sid), { name }).then((r) => r.data);
+    const targetId = Number(Array.isArray(created) ? created[0]?.cgid : created?.cgid);
+    if (!targetId) throw new Error('TeamSpeak did not return the copied group ID');
+    try {
+      const permissions = await api.get(`${cgBase(configId, sid)}/${cgid}/permissions`).then((r) => r.data);
+      for (const permission of Array.isArray(permissions) ? permissions : []) {
+        await api.put(`${cgBase(configId, sid)}/${targetId}/permissions`, {
+          permid: Number(permission.permid),
+          permvalue: Number(permission.permvalue) || 0,
+          permnegated: Number(permission.permnegated) || 0,
+          permskip: Number(permission.permskip) || 0,
+        });
+      }
+      return created;
+    } catch (error) {
+      await api.delete(`${cgBase(configId, sid)}/${targetId}`).catch(() => undefined);
+      throw error;
+    }
+  },
+  channelGroupClients: (configId: number, sid: number, cgid: number) =>
+    api.get(`${cgBase(configId, sid)}/${cgid}/clients`).then((r) => r.data),
+  assignChannelGroup: (configId: number, sid: number, cgid: number, cid: number, cldbid: number) =>
+    api.post(`${cgBase(configId, sid)}/${cgid}/assign`, { cid, cldbid }).then((r) => r.data),
   channelGroupPerms: (configId: number, sid: number, cgid: number) =>
     api.get(`${cgBase(configId, sid)}/${cgid}/permissions`).then((r) => r.data),
 };

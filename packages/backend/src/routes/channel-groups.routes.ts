@@ -24,6 +24,14 @@ channelGroupRoutes.put('/:cgid', requireRole('admin'), async (req: Request, res:
   } catch (err) { next(err); }
 });
 
+channelGroupRoutes.post('/:cgid/copy', requireRole('admin'), async (req: Request, res: Response, next) => {
+  try {
+    res.json(await getClient(req).execute(getSid(req), 'channelgroupcopy', {
+      scgid: String(req.params.cgid), ...req.body,
+    }));
+  } catch (err) { next(err); }
+});
+
 channelGroupRoutes.delete('/:cgid', requireRole('admin'), async (req: Request, res: Response, next) => {
   try {
     res.json(await getClient(req).execute(getSid(req), 'channelgroupdel', { cgid: String(req.params.cgid), force: 1 }));

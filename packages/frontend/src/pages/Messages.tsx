@@ -15,11 +15,13 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { timeAgo } from '@/lib/utils';
 import { toast } from 'sonner';
 
+const isMessageRead = (value: unknown) => String(value) === '1';
+
 export default function Messages() {
   const { selectedConfigId: c, selectedSid: s } = useServerStore();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['messages', c, s], queryFn: () => messagesApi.list(c!, s!), enabled: !!c && !!s });
-  const deleteMutation = useMutation({ mutationFn: (msgid: number) => messagesApi.delete(c!, s!, msgid), onSuccess: () => qc.invalidateQueries({ queryKey: ['messages', c, s] }) });
+  const deleteMutation = useMutation({ mutationFn: (msgid: number | string) => messagesApi.delete(c!, s!, msgid), onSuccess: () => qc.invalidateQueries({ queryKey: ['messages', c, s] }) });
   const sendMutation = useMutation({ mutationFn: (data: any) => messagesApi.send(c!, s!, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['messages', c, s] }); toast.success('Message sent'); } });
 
   const [showCompose, setShowCompose] = useState(false);
@@ -28,22 +30,59 @@ export default function Messages() {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
 
+  const viewMutation = useMutation({
+    mutationFn: async (summary: any) => {
+      const response = await messagesApi.get(c!, s!, summary.msgid);
+      const detail = Array.isArray(response) ? response[0] : response;
+      if (!detail) throw new Error('Message content not found');
+
+      if (!isMessageRead(summary.flag_read)) {
+        await messagesApi.markRead(c!, s!, summary.msgid);
+      }
+
+      return {
+        ...summary,
+        ...detail,
+        flag_read: '1',
+      };
+    },
+    onSuccess: (message) => {
+      setShowView(message);
+      qc.setQueryData(['messages', c, s], (current: any) => (
+        Array.isArray(current)
+          ? current.map((item: any) => (
+              String(item.msgid) === String(message.msgid)
+                ? { ...item, flag_read: '1' }
+                : item
+            ))
+          : current
+      ));
+    },
+    onError: () => {
+      setShowView(null);
+      toast.error('Failed to load message');
+    },
+  });
+
   const messages = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
   const columns: ColumnDef<any>[] = useMemo(() => [
-    { accessorKey: 'senderName', header: 'From', cell: ({ getValue }) => <span className="font-medium">{(getValue() as string) || '-'}</span> },
+    { accessorKey: 'cluid', header: 'From', cell: ({ getValue }) => <span className="font-mono-data text-xs">{(getValue() as string) || '-'}</span> },
     { accessorKey: 'subject', header: 'Subject' },
-    { accessorKey: 'timestamp', header: 'Date', cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{timeAgo(getValue() as number)}</span> },
+    { accessorKey: 'timestamp', header: 'Date', cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{timeAgo(Number(getValue()))}</span> },
     { accessorKey: 'flag_read', header: 'Status', cell: ({ getValue }) => (
-      <span className={`text-xs px-1.5 py-0.5 rounded ${getValue() ? 'bg-muted text-muted-foreground' : 'bg-primary/20 text-primary font-medium'}`}>
-        {getValue() ? 'Read' : 'Unread'}
+      <span className={`text-xs px-1.5 py-0.5 rounded ${isMessageRead(getValue()) ? 'bg-muted text-muted-foreground' : 'bg-primary/20 text-primary font-medium'}`}>
+        {isMessageRead(getValue()) ? 'Read' : 'Unread'}
       </span>
     )},
     {
       id: 'actions', header: '',
       cell: ({ row }) => (
         <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowView(row.original)}>
+          <Button variant="ghost" size="icon" className="h-7 w-7" disabled={viewMutation.isPending} onClick={() => {
+            setShowView(row.original);
+            viewMutation.mutate(row.original);
+          }}>
             <Eye className="h-3.5 w-3.5" />
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => {
@@ -54,7 +93,7 @@ export default function Messages() {
         </div>
       ),
     },
-  ], [deleteMutation]);
+  ], [deleteMutation, viewMutation]);
 
   if (!c || !s) return <EmptyState icon={Mail} title="No server selected" />;
   if (isLoading) return <PageLoader />;
@@ -76,19 +115,23 @@ export default function Messages() {
       <DataTable columns={columns} data={messages} searchKey="subject" searchPlaceholder="Search messages..." />
 
       {/* View Message Dialog */}
-      <Dialog open={!!showView} onOpenChange={() => setShowView(null)}>
+      <Dialog open={!!showView} onOpenChange={(open) => { if (!open) setShowView(null); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{showView?.subject || 'Message'}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>From: <span className="text-foreground font-medium">{showView?.senderName}</span></span>
-              <span className="text-border">|</span>
-              <span>{showView?.timestamp && timeAgo(showView.timestamp)}</span>
+          {viewMutation.isPending ? (
+            <div className="rounded-md bg-muted/30 border border-border p-3 text-sm text-muted-foreground">Loading message...</div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>From: <span className="text-foreground font-mono-data">{showView?.cluid || '-'}</span></span>
+                <span className="text-border">|</span>
+                <span>{showView?.timestamp && timeAgo(Number(showView.timestamp))}</span>
+              </div>
+              <div className="rounded-md bg-muted/30 border border-border p-3 text-sm min-h-[100px] whitespace-pre-wrap">
+                {showView?.message || 'No content'}
+              </div>
             </div>
-            <div className="rounded-md bg-muted/30 border border-border p-3 text-sm min-h-[100px] whitespace-pre-wrap">
-              {showView?.message || showView?.subject || 'No content'}
-            </div>
-          </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowView(null)}>Close</Button>
           </DialogFooter>

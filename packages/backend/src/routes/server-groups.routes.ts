@@ -44,7 +44,23 @@ serverGroupRoutes.get('/:sgid/members', async (req: Request, res: Response, next
 
 serverGroupRoutes.post('/:sgid/members', requireRole('admin'), async (req: Request, res: Response, next) => {
   try {
-    res.json(await getClient(req).execute(getSid(req), 'servergroupaddclient', { sgid: String(req.params.sgid), cldbid: req.body.cldbid }));
+    const sgid = Number(req.params.sgid);
+    const cldbid = Number(req.body.cldbid);
+    if (!Number.isInteger(sgid) || sgid <= 0 || !Number.isInteger(cldbid) || cldbid <= 0) {
+      res.status(400).json({ error: 'Valid server group and client database IDs are required' });
+      return;
+    }
+
+    const groups = await getClient(req).execute(getSid(req), 'servergrouplist');
+    const group = Array.isArray(groups) ? groups.find((candidate: any) => Number(candidate.sgid) === sgid) : undefined;
+    if (!group || Number(group.type) !== 1) {
+      res.status(400).json({ error: 'Only regular server groups can be assigned to clients' });
+      return;
+    }
+
+    res.json(await getClient(req).execute(getSid(req), 'servergroupaddclient', {
+      sgid: String(sgid), cldbid: String(cldbid),
+    }));
   } catch (err) { next(err); }
 });
 

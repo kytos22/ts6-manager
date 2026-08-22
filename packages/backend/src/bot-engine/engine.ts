@@ -268,6 +268,9 @@ export class BotEngine {
 
     // Always register event listener (even if no flows yet — flows can be enabled later)
     this.eventBridge.on('tsEvent', this.onTsEvent.bind(this));
+    this.eventBridge.on('sshConnected', (configId, sid) => this.broadcast('ts:ssh-status', { configId, sid, connected: true, timestamp: new Date().toISOString() }));
+    this.eventBridge.on('sshDisconnected', (configId, sid) => this.broadcast('ts:ssh-status', { configId, sid, connected: false, timestamp: new Date().toISOString() }));
+    this.eventBridge.on('sshError', (configId, sid, error) => this.broadcast('ts:ssh-error', { configId, sid, message: error.message, timestamp: new Date().toISOString() }));
 
     await this.loadFlows();
 
@@ -549,6 +552,7 @@ export class BotEngine {
 
   private onTsEvent(configId: number, sid: number, eventName: string, data: Record<string, string>): void {
     console.log(`[BotEngine] TS Event received: ${eventName} from ${configId}:${sid}`, JSON.stringify(data).substring(0, 200));
+    this.broadcast('ts:event', { configId, sid, eventName, data, timestamp: new Date().toISOString() });
     for (const flow of this.flows.values()) {
       if (flow.serverConfigId !== configId || flow.virtualServerId !== sid) continue;
 

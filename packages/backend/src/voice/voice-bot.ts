@@ -10,21 +10,28 @@ import { STREAM_PRESETS, DEFAULT_PRESET, type VideoViewerInfo, type VideoStreamS
 import { getCookieArgs } from './audio/youtube.js';
 import { spawn } from 'child_process';
 
+interface ResolvedVideoSource {
+  url: string;
+  httpHeaders: Record<string, string>;
+  audioUrl?: string;
+  audioHttpHeaders?: Record<string, string>;
+}
+
 /** Resolve a YouTube/yt-dlp-compatible URL to a direct stream URL */
-function resolveVideoUrl(url: string, maxHeight: number = 720): Promise<string> {
+function resolveVideoUrl(url: string, maxHeight: number = 720): Promise<ResolvedVideoSource> {
   // Only resolve YouTube and other yt-dlp-supported sites
   if (!url.includes('youtube.com/') && !url.includes('youtu.be/') && !url.includes('twitch.tv/')) {
-    return Promise.resolve(url);
+    return Promise.resolve({ url, httpHeaders: {} });
   }
 
   return new Promise((resolve, reject) => {
-    // Request best combined format (video+audio) up to the target height
-    const formatFilter = `best[height<=${maxHeight}][ext=mp4]/best[height<=${maxHeight}]/best[ext=mp4]/best`;
+    // Prefer DASH video+audio because YouTube rarely exposes a combined 720p URL.
+    const formatFilter = `bestvideo[height<=${maxHeight}][ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[height<=${maxHeight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${maxHeight}]+bestaudio/best[height<=${maxHeight}]/best`;
     const proc = spawn('yt-dlp', [
       ...getCookieArgs(),
       '-f', formatFilter,
       '--no-playlist',
-      '-g',  // print direct URL only
+      '--dump-single-json',
       url,
     ], { shell: false });
 
@@ -37,13 +44,48 @@ function resolveVideoUrl(url: string, maxHeight: number = 720): Promise<string> 
       if (code !== 0) {
         return reject(new Error(`yt-dlp failed (code ${code}): ${stderr.slice(0, 200)}`));
       }
-      // yt-dlp -g returns the direct URL(s), take the first one
-      const directUrl = stdout.trim().split('\n')[0];
-      if (!directUrl) {
-        return reject(new Error('yt-dlp returned no URL'));
+
+      try {
+        const info = JSON.parse(stdout);
+        const mergedDownload = Array.isArray(info.requested_downloads)
+          ? info.requested_downloads[0]
+          : undefined;
+        const downloads = Array.isArray(mergedDownload?.requested_formats) && mergedDownload.requested_formats.length > 0
+          ? mergedDownload.requested_formats
+          : Array.isArray(info.requested_formats) && info.requested_formats.length > 0
+            ? info.requested_formats
+            : Array.isArray(info.requested_downloads) && info.requested_downloads.length > 0
+              ? info.requested_downloads
+              : [info];
+        const video = downloads.find((item: any) => item?.vcodec && item.vcodec !== 'none') || downloads[0];
+        const audio = downloads.find((item: any) => item !== video && item?.acodec && item.acodec !== 'none');
+        const directUrl = video?.url || info.url;
+        if (!directUrl || typeof directUrl !== 'string') {
+          return reject(new Error('yt-dlp returned no URL'));
+        }
+
+        const cleanHeaders = (rawHeaders: any): Record<string, string> => {
+          const cleaned: Record<string, string> = {};
+          for (const [key, value] of Object.entries(rawHeaders || {})) {
+            if (typeof value === 'string' && !key.includes('\r') && !key.includes('\n') &&
+                !value.includes('\r') && !value.includes('\n')) {
+              cleaned[key] = value;
+            }
+          }
+          return cleaned;
+        };
+
+        const httpHeaders = cleanHeaders(video?.http_headers || info.http_headers);
+        const audioUrl = typeof audio?.url === 'string' ? audio.url : undefined;
+        const audioHttpHeaders = audioUrl
+          ? cleanHeaders(audio.http_headers || info.http_headers)
+          : undefined;
+
+        console.log(`[VideoResolve] Resolved: ${url.substring(0, 60)}... video+${audioUrl ? 'separate audio' : 'embedded audio'}`);
+        resolve({ url: directUrl, httpHeaders, audioUrl, audioHttpHeaders });
+      } catch (err) {
+        reject(new Error(`Failed to parse yt-dlp stream metadata: ${err instanceof Error ? err.message : String(err)}`));
       }
-      console.log(`[VideoResolve] Resolved: ${url.substring(0, 60)}... → direct URL`);
-      resolve(directUrl);
     });
 
     proc.on('error', (err) => {
@@ -862,11 +904,14 @@ export class VoiceBot extends EventEmitter {
     // Resolve YouTube/streaming URLs via yt-dlp, then start ffmpeg
     const resolvedSource = await resolveVideoUrl(source, presetConfig.height);
     await this.sidecarHttp.setSource(
-      resolvedSource,
+      resolvedSource.url,
       presetConfig.width,
       presetConfig.height,
       effectiveFramerate,
       effectiveBitrate,
+      resolvedSource.httpHeaders,
+      resolvedSource.audioUrl,
+      resolvedSource.audioHttpHeaders,
     );
 
     console.log(`[VoiceBot ${this.config.id}] Video stream started: ${stream.id}, source: ${source}`);
@@ -928,11 +973,14 @@ export class VoiceBot extends EventEmitter {
     const resolvedSource = await resolveVideoUrl(source, currentPreset.height);
 
     await this.sidecarHttp.setSource(
-      resolvedSource,
+      resolvedSource.url,
       currentPreset.width,
       currentPreset.height,
       this._videoFramerate,
       this._videoBitrate,
+      resolvedSource.httpHeaders,
+      resolvedSource.audioUrl,
+      resolvedSource.audioHttpHeaders,
     );
     console.log(`[VoiceBot ${this.config.id}] Video source changed: ${source}`);
     this.emit('videoSourceChanged', source);

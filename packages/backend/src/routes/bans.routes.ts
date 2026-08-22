@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireRole } from '../middleware/rbac.js';
+import { TSApiError } from '../middleware/error-handler.js';
 import type { ConnectionPool } from '../ts-client/connection-pool.js';
 
 export const banRoutes: Router = Router({ mergeParams: true });
@@ -11,7 +12,14 @@ const getClient = (req: Request) => {
 const getSid = (req: Request) => parseInt(String(req.params.sid));
 
 banRoutes.get('/', async (req: Request, res: Response, next) => {
-  try { res.json(await getClient(req).execute(getSid(req), 'banlist')); } catch (err) { next(err); }
+  try {
+    res.json(await getClient(req).execute(getSid(req), 'banlist'));
+  } catch (err) {
+    if (err instanceof TSApiError && err.code === 1281) {
+      return res.json([]);
+    }
+    next(err);
+  }
 });
 
 banRoutes.post('/', requireRole('admin'), async (req: Request, res: Response, next) => {

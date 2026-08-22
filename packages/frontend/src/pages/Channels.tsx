@@ -1,20 +1,29 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useChannels, useCreateChannel, useDeleteChannel, useEditChannel, useMoveChannel } from '@/hooks/use-channels';
-import { useClients } from '@/hooks/use-clients';
+import { useBanClient, useClients, useKickClient, useMessageClient, useMoveClient, usePokeClient } from '@/hooks/use-clients';
 import { useServerStore } from '@/stores/server.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { channelsApi } from '@/api/channels.api';
+import { clientsApi } from '@/api/clients.api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { PageLoader } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { TeamSpeakIcon } from '@/components/shared/TeamSpeakIcon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Hash, Plus, Trash2, Pencil, ChevronRight, ChevronDown, Users, Lock, Volume2 } from 'lucide-react';
+import { Hash, Plus, Trash2, Pencil, ChevronRight, ChevronDown, Users, Lock, Volume2, MoreHorizontal, Move, MessageSquare, Zap, LogOut, Ban, KeyRound, UserRoundCog, PanelLeft, Maximize2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ChannelNode {
@@ -26,6 +35,9 @@ interface ChannelNode {
   channel_flag_permanent: number;
   channel_flag_password: number;
   channel_codec_quality: number;
+  channel_icon_id: number;
+  channel_banner_gfx_url: string;
+  channel_banner_mode: number;
   children: ChannelNode[];
 }
 
@@ -38,6 +50,60 @@ interface ClientInfo {
   client_input_muted: number;
 }
 
+type SpacerInfo = {
+  mode: 'blank' | 'repeat' | 'center' | 'left' | 'right';
+  content: string;
+};
+
+type ClientAction = 'manage' | 'move' | 'message' | 'poke' | 'kick' | 'ban';
+
+type ChannelEditForm = {
+  channel_name: string;
+  channel_topic: string;
+  channel_description: string;
+  channel_password: string;
+  channel_name_phonetic: string;
+  channel_codec: string;
+  channel_codec_quality: string;
+  audio_encrypted: boolean;
+  permanence: 'permanent' | 'semi' | 'temporary';
+  channel_flag_default: boolean;
+  channel_flag_maxclients_unlimited: boolean;
+  channel_maxclients: string;
+  family_limit_mode: 'unlimited' | 'inherited' | 'limited';
+  channel_maxfamilyclients: string;
+  channel_needed_talk_power: string;
+  channel_delete_delay: string;
+  channel_banner_gfx_url: string;
+  channel_banner_mode: string;
+};
+
+const emptyEditForm: ChannelEditForm = {
+  channel_name: '', channel_topic: '', channel_description: '', channel_password: '', channel_name_phonetic: '',
+  channel_codec: '4', channel_codec_quality: '6', audio_encrypted: true, permanence: 'permanent',
+  channel_flag_default: false, channel_flag_maxclients_unlimited: true, channel_maxclients: '0',
+  family_limit_mode: 'unlimited', channel_maxfamilyclients: '0', channel_needed_talk_power: '0',
+  channel_delete_delay: '0', channel_banner_gfx_url: '', channel_banner_mode: '0',
+};
+
+const asBool = (value: unknown) => Number(value) === 1;
+const asText = (value: unknown, fallback = '') => value === undefined || value === null ? fallback : String(value);
+
+function parseSpacer(node: ChannelNode): SpacerInfo | null {
+  // TeamSpeak clients only treat permanent, top-level channels as spacers.
+  if (node.pid !== 0 || node.channel_flag_permanent !== 1) return null;
+  const match = node.channel_name.match(/^\[(\*?)([clr]?spacer)[^\]]*\](.*)$/i);
+  if (!match) return null;
+  const repeated = match[1] === '*';
+  const keyword = match[2].toLowerCase();
+  const content = match[3].trim();
+  if (repeated) return { mode: 'repeat', content };
+  if (keyword === 'cspacer') return { mode: 'center', content };
+  if (keyword === 'lspacer') return { mode: 'left', content };
+  if (keyword === 'rspacer') return { mode: 'right', content };
+  return { mode: 'blank', content };
+}
+
 function buildTree(channels: any[]): ChannelNode[] {
   const normalized = channels.map((ch) => ({
     ...ch,
@@ -47,6 +113,9 @@ function buildTree(channels: any[]): ChannelNode[] {
     channel_flag_permanent: Number(ch.channel_flag_permanent) || 0,
     channel_flag_password: Number(ch.channel_flag_password) || 0,
     channel_codec_quality: Number(ch.channel_codec_quality) || 0,
+    channel_icon_id: Number(ch.channel_icon_id) || 0,
+    channel_banner_gfx_url: ch.channel_banner_gfx_url || '',
+    channel_banner_mode: Number(ch.channel_banner_mode) || 0,
     channel_topic: ch.channel_topic || '',
   }));
   const map = new Map<number, ChannelNode>();
@@ -60,18 +129,93 @@ function buildTree(channels: any[]): ChannelNode[] {
   return roots;
 }
 
-function ClientEntry({ client, depth }: { client: ClientInfo; depth: number }) {
+function ChannelBannerBackground({ node, depth = 0, subtle = false }: { node: ChannelNode; depth?: number; subtle?: boolean }) {
+  const configuredUrl = node.channel_banner_gfx_url?.trim() || '';
+  const [source, setSource] = useState(configuredUrl);
+  const [failed, setFailed] = useState(false);
+  if (failed || !source || !/^https?:\/\//i.test(source)) return null;
+  const objectFit = node.channel_banner_mode === 1 ? 'fill' : node.channel_banner_mode === 2 ? 'cover' : 'none';
+  const inset = Math.max(0, depth * 16);
+  return <>
+    <img
+      src={source}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      className="pointer-events-none absolute bottom-0 right-0 top-0 z-0 h-full object-center"
+      style={{ objectFit, objectPosition: '50% 50%', left: `${inset}px`, width: `calc(100% - ${inset}px)` }}
+      onError={() => {
+        if (source.startsWith('https://') && window.location.protocol === 'http:') {
+          setSource(`http://${source.slice('https://'.length)}`);
+        } else {
+          setFailed(true);
+        }
+      }}
+    />
+    <div className={cn('pointer-events-none absolute bottom-0 right-0 top-0 z-0 bg-gradient-to-r from-background/90 via-background/55 to-background/80', subtle && 'from-background/75 via-background/30 to-background/70')} style={{ left: `${inset}px` }} />
+  </>;
+}
+
+function ClientEntry({
+  client,
+  depth,
+  isAdmin,
+  onAction,
+}: {
+  client: ClientInfo;
+  depth: number;
+  isAdmin: boolean;
+  onAction: (action: ClientAction, client: ClientInfo) => void;
+}) {
+  const handleDragStart = (event: React.DragEvent) => {
+    event.stopPropagation();
+    event.dataTransfer.setData('application/x-ts6-client', String(client.clid));
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
   return (
     <div
-      className="flex items-center gap-1.5 py-0.5 px-2 text-xs text-muted-foreground"
+      className={cn(
+        'relative flex min-h-8 items-center gap-2 rounded-md border border-transparent px-2 text-xs text-muted-foreground transition-colors group/client hover:border-border/50 hover:bg-muted/30 hover:text-foreground',
+        isAdmin && 'cursor-grab active:cursor-grabbing',
+      )}
       style={{ paddingLeft: `${depth * 16 + 28}px` }}
+      draggable={isAdmin}
+      onDragStart={isAdmin ? handleDragStart : undefined}
     >
-      <div className="h-4 w-4 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-mono-data text-primary shrink-0">
+      <div className="relative h-5 w-5 rounded-full bg-gradient-to-br from-primary/25 to-primary/5 ring-1 ring-primary/20 flex items-center justify-center text-[9px] font-semibold text-primary shrink-0">
         {client.client_nickname?.[0]?.toUpperCase() || '?'}
+        <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border-2 border-background bg-emerald-400" />
       </div>
-      <span className="truncate">{client.client_nickname}</span>
+      <span className="truncate flex-1">{client.client_nickname}</span>
       {client.client_away === 1 && <Badge variant="warning" className="text-[8px] px-1 py-0 h-3.5">Away</Badge>}
       {client.client_input_muted === 1 && !client.client_away && <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5">Muted</Badge>}
+      {isAdmin && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="p-0.5 rounded opacity-0 group-hover/client:opacity-100 data-[state=open]:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+              aria-label={`Actions for ${client.client_nickname}`}
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onSelect={() => onAction('manage', client)}><UserRoundCog className="h-3.5 w-3.5 mr-2" />Manage client</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => onAction('move', client)}><Move className="h-3.5 w-3.5 mr-2" />Move to channel</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onAction('message', client)}><MessageSquare className="h-3.5 w-3.5 mr-2" />Private message</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onAction('poke', client)}><Zap className="h-3.5 w-3.5 mr-2" />Poke</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => onAction('kick', client)}><LogOut className="h-3.5 w-3.5 mr-2" />Kick from server</DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onAction('ban', client)}><Ban className="h-3.5 w-3.5 mr-2" />Ban for 1 hour</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }
@@ -83,23 +227,41 @@ interface TreeNodeProps {
   clientsByChannel: Map<number, ClientInfo[]>;
   onDelete: (cid: number, name: string) => void;
   onEdit: (node: ChannelNode) => void;
-  onDrop: (draggedCid: number, targetCid: number) => void;
+  onDropChannel: (draggedCid: number, targetCid: number) => void;
+  onDropClient: (clid: number, targetCid: number) => void;
+  onClientAction: (action: ClientAction, client: ClientInfo) => void;
+  onBulkMove: (node: ChannelNode) => void;
+  onMessage: (node: ChannelNode) => void;
+  onPermissions: (cid: number) => void;
   draggedCid: number | null;
   setDraggedCid: (cid: number | null) => void;
 }
 
-function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete, onEdit, onDrop, draggedCid, setDraggedCid }: TreeNodeProps) {
+function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete, onEdit, onDropChannel, onDropClient, onClientAction, onBulkMove, onMessage, onPermissions, draggedCid, setDraggedCid }: TreeNodeProps) {
   const [expanded, setExpanded] = useState(true);
   const [dropOver, setDropOver] = useState(false);
   const hasChildren = node.children.length > 0;
   const clients = clientsByChannel.get(node.cid) || [];
   const hasContent = hasChildren || clients.length > 0;
-  const isSpacer = node.channel_name.startsWith('[spacer') || node.channel_name.startsWith('[*spacer');
+  const spacer = parseSpacer(node);
 
-  if (isSpacer) {
+  if (spacer) {
+    const lineContent = spacer.content || '─';
+    const markdownRule = /^([-_*=_─━—·•])\1{2,}$/.test(lineContent);
     return (
-      <div className="py-0.5" style={{ paddingLeft: `${depth * 16 + 8}px` }}>
-        <div className="border-t border-border/40 my-1" />
+      <div className="group/spacer relative isolate flex min-h-7 items-center overflow-hidden rounded-md px-3 py-1" title={isAdmin ? node.channel_name : undefined}>
+        <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} depth={depth} subtle />
+        <div className="relative z-10 flex w-full items-center">
+        {spacer.mode === 'blank' && !spacer.content && <div className="h-2 w-full" />}
+        {spacer.mode === 'blank' && spacer.content && (markdownRule
+          ? <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
+          : <span className="w-full truncate text-xs text-muted-foreground/60">{spacer.content}</span>)}
+        {spacer.mode === 'repeat' && <div className="w-full overflow-hidden whitespace-nowrap text-center font-mono-data text-[10px] leading-none tracking-wider text-border" aria-label={spacer.content || 'separator'}>{lineContent.repeat(160)}</div>}
+        {spacer.mode === 'center' && <div className="w-full px-10 text-center text-xs font-semibold uppercase tracking-[0.18em] text-primary/90">{spacer.content}</div>}
+        {spacer.mode === 'left' && <div className="w-full pr-10 text-left text-xs font-semibold tracking-wide text-foreground/80">{spacer.content}</div>}
+        {spacer.mode === 'right' && <div className="w-full pl-10 pr-8 text-right text-xs font-semibold tracking-wide text-foreground/80">{spacer.content}</div>}
+        {isAdmin && <DropdownMenu><DropdownMenuTrigger asChild><button className="absolute right-0 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/spacer:opacity-100 data-[state=open]:opacity-100" aria-label={`Actions for spacer ${node.cid}`}><MoreHorizontal className="h-3.5 w-3.5" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48"><DropdownMenuItem onSelect={() => onEdit(node)}><Pencil className="mr-2 h-3.5 w-3.5" />Edit spacer</DropdownMenuItem><DropdownMenuItem onSelect={() => onPermissions(node.cid)}><KeyRound className="mr-2 h-3.5 w-3.5" />Permissions</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(node.cid, node.channel_name)}><Trash2 className="mr-2 h-3.5 w-3.5" />Delete spacer</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
+        </div>
       </div>
     );
   }
@@ -113,7 +275,8 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (draggedCid && draggedCid !== node.cid) {
+    const isClient = Array.from(e.dataTransfer.types).includes('application/x-ts6-client');
+    if (isClient || (draggedCid && draggedCid !== node.cid)) {
       setDropOver(true);
     }
   };
@@ -124,10 +287,15 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
     e.preventDefault();
     e.stopPropagation();
     setDropOver(false);
+    const clid = Number(e.dataTransfer.getData('application/x-ts6-client'));
+    if (clid) {
+      onDropClient(clid, node.cid);
+      return;
+    }
     const cidStr = e.dataTransfer.getData('text/plain');
     const cid = Number(cidStr);
     if (cid && cid !== node.cid) {
-      onDrop(cid, node.cid);
+      onDropChannel(cid, node.cid);
     }
   };
 
@@ -137,7 +305,7 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
     <div>
       <div
         className={cn(
-          'flex items-center gap-1 py-1 px-2 rounded-sm hover:bg-muted/30 transition-colors group text-sm',
+          'relative isolate flex min-h-9 items-center rounded-md border border-transparent px-2 text-sm transition-all group overflow-hidden hover:border-border/60 hover:bg-muted/35',
           isAdmin && 'cursor-grab active:cursor-grabbing',
           dropOver && 'bg-primary/10 ring-1 ring-primary/40',
           draggedCid === node.cid && 'opacity-40',
@@ -150,35 +318,52 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
         onDrop={handleDrop}
         onDragEnd={handleDragEnd}
       >
+        <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} depth={depth} />
+        <div className="relative z-10 flex w-full items-center gap-1.5">
         {hasContent ? (
-          <button onClick={() => setExpanded(!expanded)} className="p-0.5 hover:bg-muted rounded">
-            {expanded ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+          <button onClick={() => setExpanded(!expanded)} className="rounded p-0.5 hover:bg-muted">
+            {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
           </button>
         ) : (
-          <span className="w-4" />
+          <span className="w-[18px]" />
         )}
 
-        <Hash className="h-3.5 w-3.5 text-primary/70 shrink-0" />
+        {node.channel_icon_id !== 0 ? (
+          <TeamSpeakIcon
+            configId={Number(useServerStore.getState().selectedConfigId)}
+            sid={Number(useServerStore.getState().selectedSid)}
+            iconId={node.channel_icon_id}
+            className="h-[18px] w-[18px]"
+          />
+        ) : (
+          <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded bg-primary/10"><Hash className="h-3 w-3 text-primary/80" /></span>
+        )}
 
-        <span className="truncate flex-1">{node.channel_name}</span>
+        <div className="min-w-0 flex-1"><div className="truncate font-medium text-foreground/90">{node.channel_name}</div>{node.channel_topic && <div className="truncate text-[10px] leading-3 text-muted-foreground">{node.channel_topic}</div>}</div>
 
-        <span className="text-[10px] font-mono-data text-muted-foreground/50 shrink-0">#{node.cid}</span>
+        <span className="shrink-0 rounded bg-muted/60 px-1.5 py-0.5 font-mono-data text-[9px] text-muted-foreground/60">#{node.cid}</span>
 
         {isAdmin && (
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => onEdit(node)}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Pencil className="h-3 w-3" />
-            </button>
-            <button
-              onClick={() => onDelete(node.cid, node.channel_name)}
-              className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="p-1 rounded opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                aria-label={`Actions for ${node.channel_name}`}
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onSelect={() => onEdit(node)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit channel</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onMessage(node)}><MessageSquare className="h-3.5 w-3.5 mr-2" />Send channel message</DropdownMenuItem>
+              {clients.length > 0 && <DropdownMenuItem onSelect={() => onBulkMove(node)}><UserRoundCog className="h-3.5 w-3.5 mr-2" />Move all clients</DropdownMenuItem>}
+              <DropdownMenuItem onSelect={() => onPermissions(node.cid)}><KeyRound className="h-3.5 w-3.5 mr-2" />Permissions</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(node.cid, node.channel_name)}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete channel</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         <div className="flex items-center gap-1.5 ml-1">
@@ -190,12 +375,13 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
             </span>
           )}
         </div>
+        </div>
       </div>
 
       {expanded && (
         <>
           {clients.map((client) => (
-            <ClientEntry key={client.clid} client={client} depth={depth + 1} />
+            <ClientEntry key={client.clid} client={client} depth={depth + 1} isAdmin={isAdmin} onAction={onClientAction} />
           ))}
           {node.children.map((child) => (
             <ChannelTreeNode
@@ -206,7 +392,12 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
               clientsByChannel={clientsByChannel}
               onDelete={onDelete}
               onEdit={onEdit}
-              onDrop={onDrop}
+              onDropChannel={onDropChannel}
+              onDropClient={onDropClient}
+              onClientAction={onClientAction}
+              onBulkMove={onBulkMove}
+              onMessage={onMessage}
+              onPermissions={onPermissions}
               draggedCid={draggedCid}
               setDraggedCid={setDraggedCid}
             />
@@ -218,6 +409,8 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
 }
 
 export default function Channels() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { selectedConfigId, selectedSid } = useServerStore();
   const isAdmin = useAuthStore((s) => s.isAdmin());
   const { data: channelData, isLoading: channelsLoading } = useChannels();
@@ -226,13 +419,30 @@ export default function Channels() {
   const deleteChannel = useDeleteChannel();
   const editChannel = useEditChannel();
   const moveChannel = useMoveChannel();
+  const moveClient = useMoveClient();
+  const messageClient = useMessageClient();
+  const pokeClient = usePokeClient();
+  const kickClient = useKickClient();
+  const banClient = useBanClient();
 
   const [showCreate, setShowCreate] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ cid: number; name: string } | null>(null);
   const [editTarget, setEditTarget] = useState<ChannelNode | null>(null);
-  const [editForm, setEditForm] = useState({ channel_name: '', channel_topic: '', channel_password: '' });
+  const [editForm, setEditForm] = useState<ChannelEditForm>(emptyEditForm);
+  const [originalEditForm, setOriginalEditForm] = useState<ChannelEditForm>(emptyEditForm);
+  const [loadingChannelDetails, setLoadingChannelDetails] = useState(false);
   const [newName, setNewName] = useState('');
   const [draggedCid, setDraggedCid] = useState<number | null>(null);
+  const [clientAction, setClientAction] = useState<{ action: ClientAction; client: ClientInfo } | null>(null);
+  const [actionMessage, setActionMessage] = useState('');
+  const [moveTargetCid, setMoveTargetCid] = useState('');
+  const [bulkMoveTarget, setBulkMoveTarget] = useState<ChannelNode | null>(null);
+  const [bulkMoveDestination, setBulkMoveDestination] = useState('');
+  const [movingBulk, setMovingBulk] = useState(false);
+  const [channelMessageTarget, setChannelMessageTarget] = useState<ChannelNode | null>(null);
+  const [channelMessage, setChannelMessage] = useState('');
+  const [sendingChannelMessage, setSendingChannelMessage] = useState(false);
+  const [narrowView, setNarrowView] = useState(() => localStorage.getItem('ts6-channels-narrow-view') === '1');
 
   const tree = useMemo(() => {
     if (!channelData || !Array.isArray(channelData)) return [];
@@ -259,6 +469,13 @@ export default function Channels() {
     return map;
   }, [clientData]);
 
+  const channelOptions = useMemo(() => {
+    if (!Array.isArray(channelData)) return [];
+    return channelData
+      .filter((channel: any) => !String(channel.channel_name || '').includes('spacer'))
+      .map((channel: any) => ({ cid: Number(channel.cid), name: String(channel.channel_name || `Channel #${channel.cid}`) }));
+  }, [channelData]);
+
   if (!selectedConfigId || !selectedSid) return <EmptyState icon={Hash} title="No server selected" />;
   if (channelsLoading) return <PageLoader />;
 
@@ -278,20 +495,124 @@ export default function Channels() {
     });
   };
 
-  const handleEditOpen = (node: ChannelNode) => {
+  const handleEditOpen = async (node: ChannelNode) => {
     setEditTarget(node);
-    setEditForm({ channel_name: node.channel_name, channel_topic: node.channel_topic || '', channel_password: '' });
+    setLoadingChannelDetails(true);
+    try {
+      const response = await channelsApi.get(selectedConfigId!, selectedSid!, node.cid);
+      const details = Array.isArray(response) ? response[0] : response;
+      const channel = details || node;
+      const loadedForm: ChannelEditForm = {
+        channel_name: asText(channel.channel_name, node.channel_name),
+        channel_topic: asText(channel.channel_topic, node.channel_topic || ''),
+        channel_description: asText(channel.channel_description),
+        channel_password: '',
+        channel_name_phonetic: asText(channel.channel_name_phonetic),
+        channel_codec: asText(channel.channel_codec, '4'),
+        channel_codec_quality: asText(channel.channel_codec_quality, '6'),
+        audio_encrypted: !asBool(channel.channel_codec_is_unencrypted),
+        permanence: asBool(channel.channel_flag_permanent) ? 'permanent' : asBool(channel.channel_flag_semi_permanent) ? 'semi' : 'temporary',
+        channel_flag_default: asBool(channel.channel_flag_default),
+        channel_flag_maxclients_unlimited: channel.channel_flag_maxclients_unlimited === undefined ? true : asBool(channel.channel_flag_maxclients_unlimited),
+        channel_maxclients: asText(channel.channel_maxclients, '0'),
+        family_limit_mode: asBool(channel.channel_flag_maxfamilyclients_inherited) ? 'inherited' : asBool(channel.channel_flag_maxfamilyclients_unlimited) ? 'unlimited' : 'limited',
+        channel_maxfamilyclients: asText(channel.channel_maxfamilyclients, '0'),
+        channel_needed_talk_power: asText(channel.channel_needed_talk_power, '0'),
+        channel_delete_delay: asText(channel.channel_delete_delay, '0'),
+        channel_banner_gfx_url: asText(channel.channel_banner_gfx_url),
+        channel_banner_mode: asText(channel.channel_banner_mode, '0'),
+      };
+      setEditForm(loadedForm);
+      setOriginalEditForm(loadedForm);
+    } catch (error: any) {
+      const fallbackForm = { ...emptyEditForm, channel_name: node.channel_name, channel_topic: node.channel_topic || '', channel_codec_quality: String(node.channel_codec_quality || 6) };
+      setEditForm(fallbackForm);
+      setOriginalEditForm(fallbackForm);
+      toast.error(error?.response?.data?.error || 'Could not load every channel setting');
+    } finally {
+      setLoadingChannelDetails(false);
+    }
   };
 
   const handleEditSave = () => {
     if (!editTarget || !editForm.channel_name.trim()) return;
-    const data: any = { channel_name: editForm.channel_name };
-    if (editForm.channel_topic !== undefined) data.channel_topic = editForm.channel_topic;
+    const data: Record<string, string | number> = {};
+    const changedText = (key: keyof ChannelEditForm, apiKey = key) => {
+      if (editForm[key] !== originalEditForm[key]) data[String(apiKey)] = String(editForm[key]);
+    };
+    const changedNumber = (key: keyof ChannelEditForm, apiKey = key) => {
+      if (Number(editForm[key]) !== Number(originalEditForm[key])) data[String(apiKey)] = Number(editForm[key]) || 0;
+    };
+
+    if (editForm.channel_name.trim() !== originalEditForm.channel_name) data.channel_name = editForm.channel_name.trim();
+    changedText('channel_topic');
+    changedText('channel_description');
+    changedText('channel_name_phonetic');
+    changedNumber('channel_codec');
+    changedNumber('channel_codec_quality');
+    if (editForm.audio_encrypted !== originalEditForm.audio_encrypted) data.channel_codec_is_unencrypted = editForm.audio_encrypted ? 0 : 1;
+    if (editForm.permanence !== originalEditForm.permanence) {
+      data.channel_flag_permanent = editForm.permanence === 'permanent' ? 1 : 0;
+      data.channel_flag_semi_permanent = editForm.permanence === 'semi' ? 1 : 0;
+    }
+    if (editForm.channel_flag_default !== originalEditForm.channel_flag_default) data.channel_flag_default = editForm.channel_flag_default ? 1 : 0;
+    if (editForm.channel_flag_maxclients_unlimited !== originalEditForm.channel_flag_maxclients_unlimited) data.channel_flag_maxclients_unlimited = editForm.channel_flag_maxclients_unlimited ? 1 : 0;
+    if (!editForm.channel_flag_maxclients_unlimited) changedNumber('channel_maxclients');
+    if (editForm.family_limit_mode !== originalEditForm.family_limit_mode) {
+      data.channel_flag_maxfamilyclients_unlimited = editForm.family_limit_mode === 'unlimited' ? 1 : 0;
+      data.channel_flag_maxfamilyclients_inherited = editForm.family_limit_mode === 'inherited' ? 1 : 0;
+    }
+    if (editForm.family_limit_mode === 'limited') changedNumber('channel_maxfamilyclients');
+    changedNumber('channel_needed_talk_power');
+    changedNumber('channel_delete_delay');
+    changedText('channel_banner_gfx_url');
+    changedNumber('channel_banner_mode');
     if (editForm.channel_password) data.channel_password = editForm.channel_password;
+    if (Object.keys(data).length === 0) {
+      toast.info('No channel settings changed');
+      setEditTarget(null);
+      return;
+    }
     editChannel.mutate({ cid: editTarget.cid, data }, {
       onSuccess: () => { toast.success('Channel updated'); setEditTarget(null); },
-      onError: () => toast.error('Failed to update channel'),
+      onError: (error: any) => toast.error(error?.response?.data?.error || 'Failed to update channel'),
     });
+  };
+
+  const handleBulkMove = async () => {
+    if (!bulkMoveTarget || !bulkMoveDestination) return;
+    const sourceClients = clientsByChannel.get(bulkMoveTarget.cid) || [];
+    if (sourceClients.length === 0) {
+      toast.info('There are no clients to move');
+      setBulkMoveTarget(null);
+      return;
+    }
+    setMovingBulk(true);
+    const results = await Promise.allSettled(
+      sourceClients.map((client) => clientsApi.move(selectedConfigId!, selectedSid!, client.clid, Number(bulkMoveDestination))),
+    );
+    const failed = results.filter((result) => result.status === 'rejected').length;
+    const moved = results.length - failed;
+    await queryClient.invalidateQueries({ queryKey: ['clients'] });
+    if (failed === 0) toast.success(`${moved} client${moved === 1 ? '' : 's'} moved`);
+    else if (moved > 0) toast.warning(`${moved} moved, ${failed} failed`);
+    else toast.error('No clients could be moved');
+    setMovingBulk(false);
+    setBulkMoveTarget(null);
+    setBulkMoveDestination('');
+  };
+
+  const sendChannelMessage = async () => {
+    if (!channelMessageTarget || !channelMessage.trim() || !selectedConfigId || !selectedSid) return;
+    setSendingChannelMessage(true);
+    try {
+      await channelsApi.message(selectedConfigId, selectedSid, channelMessageTarget.cid, channelMessage.trim());
+      toast.success(`Message sent to ${channelMessageTarget.channel_name}`);
+      setChannelMessageTarget(null);
+      setChannelMessage('');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Failed to send channel message');
+    } finally { setSendingChannelMessage(false); }
   };
 
   const handleDrop = (draggedCid: number, targetCid: number) => {
@@ -301,36 +622,76 @@ export default function Channels() {
     });
   };
 
+  const handleMoveClient = (clid: number, targetCid: number, closeDialog = false) => {
+    moveClient.mutate({ clid, cid: targetCid }, {
+      onSuccess: () => {
+        toast.success('Client moved');
+        if (closeDialog) setClientAction(null);
+      },
+      onError: (error: any) => toast.error(error?.response?.data?.error || 'Failed to move client'),
+    });
+  };
+
+  const openClientAction = (action: ClientAction, client: ClientInfo) => {
+    if (action === 'manage') {
+      navigate(`/clients?clid=${client.clid}`);
+      return;
+    }
+    setActionMessage('');
+    setMoveTargetCid('');
+    setClientAction({ action, client });
+  };
+
+  const submitClientAction = () => {
+    if (!clientAction) return;
+    const { action, client } = clientAction;
+    const close = () => { setClientAction(null); setActionMessage(''); setMoveTargetCid(''); };
+    const fail = (error: any) => toast.error(error?.response?.data?.error || `Failed to ${action} client`);
+
+    if (action === 'move' && moveTargetCid) {
+      handleMoveClient(client.clid, Number(moveTargetCid), true);
+    } else if (action === 'message' && actionMessage.trim()) {
+      messageClient.mutate({ clid: client.clid, msg: actionMessage.trim() }, { onSuccess: () => { toast.success('Private message sent'); close(); }, onError: fail });
+    } else if (action === 'poke' && actionMessage.trim()) {
+      pokeClient.mutate({ clid: client.clid, msg: actionMessage.trim() }, { onSuccess: () => { toast.success('Poke sent'); close(); }, onError: fail });
+    } else if (action === 'kick') {
+      kickClient.mutate({ clid: client.clid, reasonid: 5, reasonmsg: 'Kicked by administrator' }, { onSuccess: () => { toast.success('Client kicked'); close(); }, onError: fail });
+    } else if (action === 'ban') {
+      banClient.mutate({ clid: client.clid, time: 3600, banreason: 'Banned by administrator' }, { onSuccess: () => { toast.success('Client banned for 1 hour'); close(); }, onError: fail });
+    }
+  };
+
   const totalClients = clientsByChannel.size > 0
     ? Array.from(clientsByChannel.values()).reduce((sum, arr) => sum + arr.length, 0)
     : 0;
+  const spacerCount = tree.filter((node) => parseSpacer(node) !== null).length;
+  const channelCount = Math.max(0, (Array.isArray(channelData) ? channelData.length : 0) - spacerCount);
+  const occupiedChannels = Array.from(clientsByChannel.values()).filter((clients) => clients.length > 0).length;
+  const changeViewMode = (narrow: boolean) => {
+    setNarrowView(narrow);
+    localStorage.setItem('ts6-channels-narrow-view', narrow ? '1' : '0');
+  };
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Channels</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {Array.isArray(channelData) ? channelData.length : 0} channels · {totalClients} clients online
-          </p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Live TeamSpeak hierarchy and channel management.</p>
         </div>
-        {isAdmin && (
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Create Channel
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2"><div className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs"><Hash className="h-3.5 w-3.5 text-primary" /><span className="font-semibold">{channelCount}</span><span className="text-muted-foreground">channels</span></div><div className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs"><Users className="h-3.5 w-3.5 text-emerald-400" /><span className="font-semibold">{totalClients}</span><span className="text-muted-foreground">online</span></div><div className="hidden items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs sm:flex"><Volume2 className="h-3.5 w-3.5 text-violet-400" /><span className="font-semibold">{occupiedChannels}</span><span className="text-muted-foreground">active</span></div><div className="flex items-center rounded-lg border bg-card/60 p-0.5"><Button type="button" size="sm" variant={narrowView ? 'secondary' : 'ghost'} className="h-7 px-2 text-xs" onClick={() => changeViewMode(true)} title="Use a TeamSpeak-like narrow server tree"><PanelLeft className="mr-1 h-3.5 w-3.5" />TS6 narrow</Button><Button type="button" size="sm" variant={!narrowView ? 'secondary' : 'ghost'} className="h-7 px-2 text-xs" onClick={() => changeViewMode(false)} title="Use all available width"><Maximize2 className="mr-1 h-3.5 w-3.5" />Full</Button></div>{isAdmin && <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="mr-1 h-4 w-4" />Create Channel</Button>}</div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <Volume2 className="h-4 w-4 text-primary" />
-            Channel Tree
+      <Card className={cn('overflow-hidden border-border/70 shadow-sm transition-[max-width] duration-200', narrowView && 'max-w-[36rem]')}>
+        <CardHeader className="border-b bg-gradient-to-r from-primary/[0.06] via-card to-card px-4 py-3">
+          <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-sm font-medium">
+            <span className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10"><Volume2 className="h-4 w-4 text-primary" /></span><span>TeamSpeak channel tree</span></span>
+            <span className="flex items-center gap-3 text-[10px] font-normal text-muted-foreground"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-400" />Connected client</span><span>{spacerCount} visual spacers</span></span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[600px]">
-            <div className="space-y-0">
+        <CardContent className="p-2">
+          <ScrollArea className="h-[calc(100vh-15rem)] min-h-[560px] max-h-[780px]">
+            <div className="space-y-0.5 pr-3">
               {tree.map((node) => (
                 <ChannelTreeNode
                   key={node.cid}
@@ -339,7 +700,12 @@ export default function Channels() {
                   clientsByChannel={clientsByChannel}
                   onDelete={(cid, name) => setDeleteTarget({ cid, name })}
                   onEdit={handleEditOpen}
-                  onDrop={handleDrop}
+                  onDropChannel={handleDrop}
+                  onDropClient={(clid, cid) => handleMoveClient(clid, cid)}
+                  onClientAction={openClientAction}
+                  onBulkMove={(node) => { setBulkMoveDestination(''); setBulkMoveTarget(node); }}
+                  onMessage={(node) => { setChannelMessage(''); setChannelMessageTarget(node); }}
+                  onPermissions={(cid) => navigate(`/permissions?layer=channel&id=${cid}`)}
                   draggedCid={draggedCid}
                   setDraggedCid={setDraggedCid}
                 />
@@ -370,30 +736,90 @@ export default function Channels() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editTarget} onOpenChange={(v) => { if (!v) setEditTarget(null); }}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Edit Channel</DialogTitle>
+            <DialogTitle>Edit Channel · {editTarget?.channel_name}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs">Channel Name</Label>
-              <Input value={editForm.channel_name} onChange={(e) => setEditForm({ ...editForm, channel_name: e.target.value })} />
-            </div>
-            <div>
-              <Label className="text-xs">Topic</Label>
-              <Input value={editForm.channel_topic} onChange={(e) => setEditForm({ ...editForm, channel_topic: e.target.value })} placeholder="Optional" />
-            </div>
-            <div>
-              <Label className="text-xs">Password</Label>
-              <Input type="password" value={editForm.channel_password} onChange={(e) => setEditForm({ ...editForm, channel_password: e.target.value })} placeholder="Leave empty to keep current" />
-            </div>
-          </div>
+          <ScrollArea className="max-h-[68vh] pr-4">
+            {loadingChannelDetails ? <div className="py-16 text-center text-sm text-muted-foreground">Loading channel settings…</div> : (
+              <div className="space-y-5">
+                <section className="space-y-3">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Identity</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div><Label className="text-xs">Channel Name</Label><Input value={editForm.channel_name} onChange={(e) => setEditForm({ ...editForm, channel_name: e.target.value })} /></div>
+                    <div><Label className="text-xs">Phonetic Name</Label><Input value={editForm.channel_name_phonetic} onChange={(e) => setEditForm({ ...editForm, channel_name_phonetic: e.target.value })} placeholder="Optional" /></div>
+                  </div>
+                  <div><Label className="text-xs">Topic</Label><Input value={editForm.channel_topic} onChange={(e) => setEditForm({ ...editForm, channel_topic: e.target.value })} placeholder="Optional" /></div>
+                  <div><Label className="text-xs">Description</Label><Textarea className="min-h-24" value={editForm.channel_description} onChange={(e) => setEditForm({ ...editForm, channel_description: e.target.value })} placeholder="Optional" /></div>
+                  <div><Label className="text-xs">Password</Label><Input type="password" value={editForm.channel_password} onChange={(e) => setEditForm({ ...editForm, channel_password: e.target.value })} placeholder="Leave empty to keep current" /></div>
+                </section>
+
+                <section className="space-y-3 border-t border-border/60 pt-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Audio</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div><Label className="text-xs">Codec</Label><Select value={editForm.channel_codec} onValueChange={(value) => setEditForm({ ...editForm, channel_codec: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="4">Opus Voice</SelectItem><SelectItem value="5">Opus Music</SelectItem></SelectContent></Select></div>
+                    <div><Label className="text-xs">Quality (0–10)</Label><Select value={editForm.channel_codec_quality} onValueChange={(value) => setEditForm({ ...editForm, channel_codec_quality: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from({ length: 11 }, (_, quality) => <SelectItem key={quality} value={String(quality)}>{quality}</SelectItem>)}</SelectContent></Select></div>
+                  </div>
+                  <div className="flex items-center justify-between rounded-md border border-border/60 p-3"><div><Label>Encrypted audio</Label><p className="text-xs text-muted-foreground">Keep voice traffic encrypted.</p></div><Switch checked={editForm.audio_encrypted} onCheckedChange={(checked) => setEditForm({ ...editForm, audio_encrypted: checked })} /></div>
+                </section>
+
+                <section className="space-y-3 border-t border-border/60 pt-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Capacity and access</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div><Label className="text-xs">Client limit</Label><div className="mt-1 flex items-center gap-3"><Switch checked={editForm.channel_flag_maxclients_unlimited} onCheckedChange={(checked) => setEditForm({ ...editForm, channel_flag_maxclients_unlimited: checked })} /><span className="text-xs text-muted-foreground">Unlimited</span><Input className="ml-auto w-24" type="number" min="0" disabled={editForm.channel_flag_maxclients_unlimited} value={editForm.channel_maxclients} onChange={(e) => setEditForm({ ...editForm, channel_maxclients: e.target.value })} /></div></div>
+                    <div><Label className="text-xs">Channel family limit</Label><Select value={editForm.family_limit_mode} onValueChange={(value: ChannelEditForm['family_limit_mode']) => setEditForm({ ...editForm, family_limit_mode: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unlimited">Unlimited</SelectItem><SelectItem value="inherited">Inherited</SelectItem><SelectItem value="limited">Custom limit</SelectItem></SelectContent></Select></div>
+                    {editForm.family_limit_mode === 'limited' && <div><Label className="text-xs">Family clients</Label><Input type="number" min="0" value={editForm.channel_maxfamilyclients} onChange={(e) => setEditForm({ ...editForm, channel_maxfamilyclients: e.target.value })} /></div>}
+                    <div><Label className="text-xs">Needed talk power</Label><Input type="number" min="0" value={editForm.channel_needed_talk_power} onChange={(e) => setEditForm({ ...editForm, channel_needed_talk_power: e.target.value })} /></div>
+                  </div>
+                </section>
+
+                <section className="space-y-3 border-t border-border/60 pt-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lifecycle</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div><Label className="text-xs">Channel type</Label><Select value={editForm.permanence} onValueChange={(value: ChannelEditForm['permanence']) => setEditForm({ ...editForm, permanence: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="permanent">Permanent</SelectItem><SelectItem value="semi">Semi-permanent</SelectItem><SelectItem value="temporary">Temporary</SelectItem></SelectContent></Select></div>
+                    <div><Label className="text-xs">Delete delay (seconds)</Label><Input type="number" min="0" value={editForm.channel_delete_delay} onChange={(e) => setEditForm({ ...editForm, channel_delete_delay: e.target.value })} /></div>
+                  </div>
+                  <div className="flex items-center justify-between rounded-md border border-border/60 p-3"><div><Label>Default channel</Label><p className="text-xs text-muted-foreground">New clients enter this channel.</p></div><Switch checked={editForm.channel_flag_default} onCheckedChange={(checked) => setEditForm({ ...editForm, channel_flag_default: checked })} /></div>
+                </section>
+
+                <section className="space-y-3 border-t border-border/60 pt-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Appearance</h3>
+                  <div><Label className="text-xs">Banner URL</Label><Input value={editForm.channel_banner_gfx_url} onChange={(e) => setEditForm({ ...editForm, channel_banner_gfx_url: e.target.value })} placeholder="https://…" /></div>
+                  <div><Label className="text-xs">Banner mode</Label><Select value={editForm.channel_banner_mode} onValueChange={(value) => setEditForm({ ...editForm, channel_banner_mode: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="0">No adjustment</SelectItem><SelectItem value="1">Stretch</SelectItem><SelectItem value="2">Keep aspect ratio</SelectItem></SelectContent></Select></div>
+                  <p className="text-xs text-muted-foreground">Existing channel icons are displayed. Direct icon assignment is unavailable because the current TS6 Query rejects that operation.</p>
+                </section>
+              </div>
+            )}
+          </ScrollArea>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancel</Button>
-            <Button onClick={handleEditSave} disabled={!editForm.channel_name.trim() || editChannel.isPending}>
+            <Button onClick={handleEditSave} disabled={loadingChannelDetails || !editForm.channel_name.trim() || editChannel.isPending}>
               {editChannel.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!bulkMoveTarget} onOpenChange={(open) => { if (!open && !movingBulk) { setBulkMoveTarget(null); setBulkMoveDestination(''); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Move all clients · {bulkMoveTarget?.channel_name}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Move all {bulkMoveTarget ? (clientsByChannel.get(bulkMoveTarget.cid) || []).length : 0} connected clients from this channel.</p>
+            <div><Label className="text-xs">Destination channel</Label><Select value={bulkMoveDestination} onValueChange={setBulkMoveDestination}><SelectTrigger><SelectValue placeholder="Select a channel" /></SelectTrigger><SelectContent>{channelOptions.filter((channel) => channel.cid !== bulkMoveTarget?.cid).map((channel) => <SelectItem key={channel.cid} value={String(channel.cid)}>{channel.name}</SelectItem>)}</SelectContent></Select></div>
+          </div>
+          <DialogFooter><Button variant="outline" disabled={movingBulk} onClick={() => setBulkMoveTarget(null)}>Cancel</Button><Button disabled={!bulkMoveDestination || movingBulk} onClick={handleBulkMove}>{movingBulk ? 'Moving…' : 'Move all clients'}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!channelMessageTarget} onOpenChange={(open) => { if (!open && !sendingChannelMessage) setChannelMessageTarget(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Send message · {channelMessageTarget?.channel_name}</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Channel message</Label>
+            <Textarea value={channelMessage} onChange={(event) => setChannelMessage(event.target.value)} maxLength={1024} autoFocus />
+            <p className="text-[10px] text-muted-foreground text-right">{channelMessage.length}/1024</p>
+          </div>
+          <DialogFooter><Button variant="outline" disabled={sendingChannelMessage} onClick={() => setChannelMessageTarget(null)}>Cancel</Button><Button disabled={!channelMessage.trim() || sendingChannelMessage} onClick={sendChannelMessage}>{sendingChannelMessage ? 'Sending…' : 'Send to channel'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -407,6 +833,72 @@ export default function Channels() {
         destructive
         onConfirm={handleDelete}
         loading={deleteChannel.isPending}
+      />
+
+      <Dialog
+        open={clientAction?.action === 'move'}
+        onOpenChange={(open) => { if (!open) setClientAction(null); }}
+      >
+        <DialogContent>
+          <DialogHeader><DialogTitle>Move {clientAction?.client.client_nickname}</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Destination channel</Label>
+            <Select value={moveTargetCid} onValueChange={setMoveTargetCid}>
+              <SelectTrigger><SelectValue placeholder="Select a channel" /></SelectTrigger>
+              <SelectContent>
+                {channelOptions
+                  .filter((channel) => channel.cid !== clientAction?.client.cid)
+                  .map((channel) => <SelectItem key={channel.cid} value={String(channel.cid)}>{channel.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClientAction(null)}>Cancel</Button>
+            <Button onClick={submitClientAction} disabled={!moveTargetCid || moveClient.isPending}>Move client</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={clientAction?.action === 'message' || clientAction?.action === 'poke'}
+        onOpenChange={(open) => { if (!open) setClientAction(null); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{clientAction?.action === 'poke' ? 'Poke' : 'Private message'} · {clientAction?.client.client_nickname}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Message</Label>
+            <Textarea value={actionMessage} onChange={(event) => setActionMessage(event.target.value)} maxLength={1024} autoFocus />
+            <p className="text-[10px] text-muted-foreground text-right">{actionMessage.length}/1024</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClientAction(null)}>Cancel</Button>
+            <Button onClick={submitClientAction} disabled={!actionMessage.trim() || messageClient.isPending || pokeClient.isPending}>Send</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={clientAction?.action === 'kick'}
+        onOpenChange={(open) => { if (!open) setClientAction(null); }}
+        title="Kick client from server?"
+        description={`This will disconnect "${clientAction?.client.client_nickname || ''}" from the virtual server.`}
+        confirmLabel="Kick client"
+        destructive
+        onConfirm={submitClientAction}
+        loading={kickClient.isPending}
+      />
+
+      <ConfirmDialog
+        open={clientAction?.action === 'ban'}
+        onOpenChange={(open) => { if (!open) setClientAction(null); }}
+        title="Ban client for 1 hour?"
+        description={`This will disconnect "${clientAction?.client.client_nickname || ''}" and prevent reconnection for one hour.`}
+        confirmLabel="Ban client"
+        destructive
+        onConfirm={submitClientAction}
+        loading={banClient.isPending}
       />
     </div>
   );

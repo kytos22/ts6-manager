@@ -6,6 +6,8 @@ import { widgetDataCache } from './widget-public.routes.js';
 
 export const widgetRoutes: Router = Router();
 
+widgetRoutes.use(requireRole('admin'));
+
 // GET / — List all widgets
 widgetRoutes.get('/', async (req: Request, res: Response, next) => {
   try {

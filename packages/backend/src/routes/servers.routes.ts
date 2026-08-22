@@ -11,7 +11,13 @@ export const serverRoutes: Router = Router();
 serverRoutes.get('/', async (req: Request, res: Response, next) => {
   try {
     const prisma = req.app.locals.prisma;
+    const where = req.user?.role === 'admin'
+      ? undefined
+      : {
+          userAccess: { some: { userId: req.user!.id } },
+        };
     const servers = await prisma.tsServerConfig.findMany({
+      where,
       select: {
         id: true, name: true, host: true, webqueryPort: true,
         useHttps: true, sshPort: true, enabled: true,
@@ -61,8 +67,15 @@ serverRoutes.post('/', requireRole('admin'), async (req: Request, res: Response,
 serverRoutes.get('/:configId', async (req: Request, res: Response, next) => {
   try {
     const prisma = req.app.locals.prisma;
-    const server = await prisma.tsServerConfig.findUnique({
-      where: { id: parseInt(String(req.params.configId)) },
+    const id = parseInt(String(req.params.configId));
+    const where = req.user?.role === 'admin'
+      ? { id }
+      : {
+          id,
+          userAccess: { some: { userId: req.user!.id } },
+        };
+    const server = await prisma.tsServerConfig.findFirst({
+      where,
     });
     if (!server) throw new AppError(404, 'Server config not found');
 

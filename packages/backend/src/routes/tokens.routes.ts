@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireRole } from '../middleware/rbac.js';
+import { TSApiError } from '../middleware/error-handler.js';
 import type { ConnectionPool } from '../ts-client/connection-pool.js';
 
 export const tokenRoutes: Router = Router({ mergeParams: true });
@@ -11,7 +12,14 @@ const getClient = (req: Request) => {
 const getSid = (req: Request) => parseInt(String(req.params.sid));
 
 tokenRoutes.get('/', async (req: Request, res: Response, next) => {
-  try { res.json(await getClient(req).execute(getSid(req), 'privilegekeylist')); } catch (err) { next(err); }
+  try {
+    res.json(await getClient(req).execute(getSid(req), 'privilegekeylist'));
+  } catch (err) {
+    if (err instanceof TSApiError && err.code === 1281) {
+      return res.json([]);
+    }
+    next(err);
+  }
 });
 
 tokenRoutes.post('/', requireRole('admin'), async (req: Request, res: Response, next) => {

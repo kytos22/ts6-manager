@@ -5,16 +5,21 @@ import { useServerStore } from '@/stores/server.store';
 import { Server } from 'lucide-react';
 
 export function ServerSelector() {
-  const { selectedConfigId, selectedSid, setServer, setSid } = useServerStore();
+  const { selectedConfigId, selectedSid, setServer, setSid, clearServer } = useServerStore();
   const { data: servers } = useServers();
   const { data: virtualServers } = useVirtualServers();
 
   // Auto-select first server if none selected
   useEffect(() => {
-    if (!selectedConfigId && servers?.length > 0) {
+    if (!servers) return;
+    if (servers.length === 0) {
+      if (selectedConfigId) clearServer();
+      return;
+    }
+    if (!selectedConfigId || !servers.some((server: any) => server.id === selectedConfigId)) {
       setServer(servers[0].id);
     }
-  }, [servers, selectedConfigId, setServer]);
+  }, [servers, selectedConfigId, setServer, clearServer]);
 
   // Auto-select first virtual server
   useEffect(() => {

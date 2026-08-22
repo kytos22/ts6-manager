@@ -14,7 +14,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: false,
       refetchOnWindowFocus: false,
       staleTime: 30_000,
     },
@@ -33,10 +33,12 @@ const Permissions = lazy(() => import('@/pages/Permissions'));
 const Bans = lazy(() => import('@/pages/Bans'));
 const Tokens = lazy(() => import('@/pages/Tokens'));
 const Files = lazy(() => import('@/pages/Files'));
+const IconManager = lazy(() => import('@/pages/IconManager'));
 const Complaints = lazy(() => import('@/pages/Complaints'));
 const Messages = lazy(() => import('@/pages/Messages'));
 const ServerLogs = lazy(() => import('@/pages/ServerLogs'));
 const Instance = lazy(() => import('@/pages/Instance'));
+const Operations = lazy(() => import('@/pages/Operations'));
 const BotList = lazy(() => import('@/pages/BotList'));
 const BotEditor = lazy(() => import('@/pages/BotEditor'));
 const MusicBots = lazy(() => import('@/pages/MusicBots'));
@@ -68,10 +70,12 @@ export function App() {
               <Route path="/bans" element={<AdminRoute><Bans /></AdminRoute>} />
               <Route path="/tokens" element={<AdminRoute><Tokens /></AdminRoute>} />
               <Route path="/files" element={<AdminRoute><Files /></AdminRoute>} />
+              <Route path="/icons" element={<AdminRoute><IconManager /></AdminRoute>} />
               <Route path="/complaints" element={<AdminRoute><Complaints /></AdminRoute>} />
               <Route path="/messages" element={<AdminRoute><Messages /></AdminRoute>} />
               <Route path="/logs" element={<AdminRoute><ServerLogs /></AdminRoute>} />
               <Route path="/instance" element={<AdminRoute><Instance /></AdminRoute>} />
+              <Route path="/operations" element={<AdminRoute><Operations /></AdminRoute>} />
               <Route path="/music-requests" element={<AdminRoute><MusicRequests /></AdminRoute>} />
               <Route path="/bots" element={<AdminRoute><BotList /></AdminRoute>} />
               <Route path="/bots/:botId" element={<AdminRoute><BotEditor /></AdminRoute>} />

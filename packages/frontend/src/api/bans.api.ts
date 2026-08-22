@@ -21,6 +21,8 @@ export const tokensApi = {
     api.post(`/servers/${configId}/vs/${sid}/tokens`, data).then((r) => r.data),
   delete: (configId: number, sid: number, token: string) =>
     api.delete(`/servers/${configId}/vs/${sid}/tokens/${encodeURIComponent(token)}`),
+  icon: (configId: number, sid: number, iconId: string) =>
+    api.get(`/servers/${configId}/vs/${sid}/files/icon/${encodeURIComponent(iconId)}`, { responseType: 'blob' }).then((r) => r.data as Blob),
 };
 
 export const complaintsApi = {
@@ -33,11 +35,13 @@ export const complaintsApi = {
 export const messagesApi = {
   list: (configId: number, sid: number) =>
     api.get(`/servers/${configId}/vs/${sid}/messages`).then((r) => r.data),
-  get: (configId: number, sid: number, msgid: number) =>
+  get: (configId: number, sid: number, msgid: number | string) =>
     api.get(`/servers/${configId}/vs/${sid}/messages/${msgid}`).then((r) => r.data),
+  markRead: (configId: number, sid: number, msgid: number | string, read = true) =>
+    api.patch(`/servers/${configId}/vs/${sid}/messages/${msgid}/read`, { read }).then((r) => r.data),
   send: (configId: number, sid: number, data: any) =>
     api.post(`/servers/${configId}/vs/${sid}/messages`, data).then((r) => r.data),
-  delete: (configId: number, sid: number, msgid: number) =>
+  delete: (configId: number, sid: number, msgid: number | string) =>
     api.delete(`/servers/${configId}/vs/${sid}/messages/${msgid}`),
 };
 

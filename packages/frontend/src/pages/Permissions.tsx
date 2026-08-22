@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { permissionsApi } from '@/api/permissions.api';
 import { useServerStore } from '@/stores/server.store';
@@ -75,9 +76,13 @@ const LAYERS: { key: PermLayer; label: string; icon: React.ElementType }[] = [
 export default function Permissions() {
   const { selectedConfigId: c, selectedSid: s } = useServerStore();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const requestedLayer = searchParams.get('layer') as PermLayer | null;
+  const requestedId = Number(searchParams.get('id')) || null;
+  const initialLayer = requestedLayer && LAYERS.some((item) => item.key === requestedLayer) ? requestedLayer : 'server-group';
 
-  const [layer, setLayer] = useState<PermLayer>('server-group');
-  const [entityId, setEntityId] = useState<number | null>(null);
+  const [layer, setLayer] = useState<PermLayer>(initialLayer);
+  const [entityId, setEntityId] = useState<number | null>(requestedId);
   const [search, setSearch] = useState('');
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [changes, setChanges] = useState<Map<string, PendingChange>>(new Map());
@@ -125,9 +130,6 @@ export default function Permissions() {
     },
     enabled: !!c && !!s && !!entityId,
   });
-
-  // Reset entity when layer changes
-  useEffect(() => { setEntityId(null); setChanges(new Map()); }, [layer]);
 
   // Parse permission definitions into categorized structure
   // TS WebQuery returns { permid, permname, permdesc } — NOT permsid
@@ -299,7 +301,7 @@ export default function Permissions() {
         {LAYERS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
-            onClick={() => setLayer(key)}
+            onClick={() => { setLayer(key); setEntityId(null); setChanges(new Map()); }}
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
               layer === key

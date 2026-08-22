@@ -3,9 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pion/interceptor"
+	"github.com/pion/interceptor/pkg/intervalpli"
+	"github.com/pion/rtcp"
+	"github.com/pion/rtp"
+	"github.com/pion/webrtc/v4"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -15,11 +21,6 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-	"github.com/pion/interceptor"
-	"github.com/pion/interceptor/pkg/intervalpli"
-	"github.com/pion/rtcp"
-	"github.com/pion/rtp"
-	"github.com/pion/webrtc/v4"
 )
 
 var defaultStunServers = []string{
@@ -279,16 +280,18 @@ type createInFlight struct {
 }
 
 type Peer struct {
-	ID              string
-	PC              *webrtc.PeerConnection
-	VideoTrack      *webrtc.TrackLocalStaticRTP
-	AudioTrack      *webrtc.TrackLocalStaticRTP
-	VideoSSRC       uint32
-	AudioSSRC       uint32
-	Active          bool
-	Started         bool
-	mu              sync.Mutex
-	stopSR          chan struct{}
+	ID         string
+	PC         *webrtc.PeerConnection
+	VideoTrack *webrtc.TrackLocalStaticRTP
+	AudioTrack *webrtc.TrackLocalStaticRTP
+	VideoSSRC  uint32
+	AudioSSRC  uint32
+	Active     bool
+	Started    bool
+	mu         sync.Mutex
+	stopSR     chan struct{}
+	pendingICE []webrtc.ICECandidateInit
+	seenICE    map[string]struct{}
 }
 
 type Sidecar struct {
@@ -307,13 +310,13 @@ type Sidecar struct {
 	running    bool
 
 	// Atomic timestamps for RTCP Sender Report generation
-	lastVideoRTPTs uint64 // atomic: latest video RTP timestamp seen
-	lastAudioRTPTs uint64 // atomic: latest audio RTP timestamp seen
-	videoPktCount  uint64 // atomic
-	videOctetCount uint64 // atomic
-	audioPktCount  uint64 // atomic
+	lastVideoRTPTs  uint64 // atomic: latest video RTP timestamp seen
+	lastAudioRTPTs  uint64 // atomic: latest audio RTP timestamp seen
+	videoPktCount   uint64 // atomic
+	videOctetCount  uint64 // atomic
+	audioPktCount   uint64 // atomic
 	audioOctetCount uint64 // atomic
-	
+
 	videoQueue chan *rtp.Packet
 	audioQueue chan *rtp.Packet
 
@@ -337,7 +340,6 @@ func NewSidecar() *Sidecar {
 		audioQueue: make(chan *rtp.Packet, envIntOrDefault("AUDIO_QUEUE_SIZE", 2048)),
 	}
 }
-
 
 func (s *Sidecar) StartRTP() error {
 	var err error
@@ -563,7 +565,7 @@ func (s *Sidecar) CreatePeer(id string) (sdp string, err error) {
 	}()
 
 	iceServers := []webrtc.ICEServer{}
-    
+
 	for _, stun := range getStunServers() {
 		iceServers = append(iceServers, webrtc.ICEServer{URLs: []string{stun}})
 	}
@@ -643,6 +645,7 @@ func (s *Sidecar) CreatePeer(id string) (sdp string, err error) {
 		AudioTrack: audioTrack,
 		Active:     false,
 		stopSR:     make(chan struct{}),
+		seenICE:    make(map[string]struct{}),
 	}
 
 	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
@@ -815,10 +818,20 @@ func (s *Sidecar) SetAnswer(id, sdp string) error {
 		return nil
 	}
 
-	return peer.PC.SetRemoteDescription(webrtc.SessionDescription{
+	if err := peer.PC.SetRemoteDescription(webrtc.SessionDescription{
 		Type: webrtc.SDPTypeAnswer,
 		SDP:  sdp,
-	})
+	}); err != nil {
+		return err
+	}
+
+	for _, candidate := range peer.pendingICE {
+		if err := peer.PC.AddICECandidate(candidate); err != nil {
+			return fmt.Errorf("apply queued ICE candidate: %w", err)
+		}
+	}
+	peer.pendingICE = nil
+	return nil
 }
 
 func (s *Sidecar) AddICECandidate(id string, candidate string, sdpMid string, sdpMLineIndex uint16) error {
@@ -829,11 +842,33 @@ func (s *Sidecar) AddICECandidate(id string, candidate string, sdpMid string, sd
 		return fmt.Errorf("peer %s not found", id)
 	}
 
-	return peer.PC.AddICECandidate(webrtc.ICECandidateInit{
+	peer.mu.Lock()
+	defer peer.mu.Unlock()
+
+	key := fmt.Sprintf("%s|%s|%d", candidate, sdpMid, sdpMLineIndex)
+	if _, exists := peer.seenICE[key]; exists {
+		debugf("[API] Ignoring duplicate ICE candidate for peer: %s", id)
+		return nil
+	}
+
+	init := webrtc.ICECandidateInit{
 		Candidate:     candidate,
 		SDPMid:        &sdpMid,
 		SDPMLineIndex: &sdpMLineIndex,
-	})
+	}
+	peer.seenICE[key] = struct{}{}
+
+	if peer.PC.RemoteDescription() == nil {
+		peer.pendingICE = append(peer.pendingICE, init)
+		debugf("[API] Queued ICE candidate until answer is set for peer: %s", id)
+		return nil
+	}
+
+	if err := peer.PC.AddICECandidate(init); err != nil {
+		delete(peer.seenICE, key)
+		return err
+	}
+	return nil
 }
 
 func (s *Sidecar) ClosePeer(id string) {
@@ -847,7 +882,39 @@ func (s *Sidecar) ClosePeer(id string) {
 	s.peersLock.Unlock()
 }
 
-func (s *Sidecar) StartFFmpeg(source string, width int, height int, framerate int, bitrate string) {
+func safeSourceForLog(source string) string {
+	parsed, err := url.Parse(source)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		if len(source) > 160 {
+			return source[:160] + "..."
+		}
+		return source
+	}
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
+}
+
+func ffmpegHTTPHeaderArgs(headers map[string]string) []string {
+	args := []string{}
+	lines := []string{}
+	for key, value := range headers {
+		if key == "" || strings.ContainsAny(key, "\r\n:") || strings.ContainsAny(value, "\r\n") {
+			continue
+		}
+		if strings.EqualFold(key, "User-Agent") {
+			args = append(args, "-user_agent", value)
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%s: %s", key, value))
+	}
+	if len(lines) > 0 {
+		args = append(args, "-headers", strings.Join(lines, "\r\n")+"\r\n")
+	}
+	return args
+}
+
+func (s *Sidecar) StartFFmpeg(source string, headers map[string]string, audioSource string, audioHeaders map[string]string, width int, height int, framerate int, bitrate string) {
 	s.ffmpegLock.Lock()
 	defer s.ffmpegLock.Unlock()
 
@@ -878,20 +945,28 @@ func (s *Sidecar) StartFFmpeg(source string, width int, height int, framerate in
 
 	if source != "" {
 		if strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://") {
+			args = append(args, ffmpegHTTPHeaderArgs(headers)...)
 			args = append(args, "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5")
 		} else {
 			args = append(args, "-stream_loop", "-1")
 		}
 
 		args = append(args, "-fflags", "+genpts+discardcorrupt", "-re", "-i", source)
+		if audioSource != "" {
+			if strings.HasPrefix(audioSource, "http://") || strings.HasPrefix(audioSource, "https://") {
+				args = append(args, ffmpegHTTPHeaderArgs(audioHeaders)...)
+				args = append(args, "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5")
+			}
+			args = append(args, "-re", "-i", audioSource)
+		}
 	} else {
 		args = append(args, "-re", "-f", "lavfi", "-i", fmt.Sprintf("color=c=black:s=%dx%d:r=1", w, h))
 	}
 
 	vBitrate := strings.TrimSpace(bitrate)
-		if vBitrate == "" {
-			vBitrate = envOrDefault("VIDEO_BITRATE", "1500k")
-		}
+	if vBitrate == "" {
+		vBitrate = envOrDefault("VIDEO_BITRATE", "1500k")
+	}
 	audioDelayMs := envIntOrDefault("AUDIO_DELAY_MS", 0)
 
 	if source != "" {
@@ -926,8 +1001,12 @@ func (s *Sidecar) StartFFmpeg(source string, width int, height int, framerate in
 	if source != "" {
 		aBitrate := envOrDefault("AUDIO_BITRATE", "128k")
 
+		audioMap := "0:a:0?"
+		if audioSource != "" {
+			audioMap = "1:a:0?"
+		}
 		args = append(args,
-			"-map", "0:a:0?",
+			"-map", audioMap,
 		)
 
 		if audioDelayMs > 0 {
@@ -948,8 +1027,7 @@ func (s *Sidecar) StartFFmpeg(source string, width int, height int, framerate in
 		)
 	}
 
-
-	log.Printf("[FFmpeg] Starting: source=%s video=:%d audio=:%d", source, s.videoPort, s.audioPort)
+	log.Printf("[FFmpeg] Starting: source=%s headers=%d separateAudio=%t audioHeaders=%d video=:%d audio=:%d", safeSourceForLog(source), len(headers), audioSource != "", len(audioHeaders), s.videoPort, s.audioPort)
 
 	cmd := exec.Command(getFfmpegPath(), args...)
 	cmd.Stdout = nil
@@ -1105,18 +1183,21 @@ func main() {
 
 	mux.HandleFunc("POST /source", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Source    string `json:"source"`
-			Width     int    `json:"width"`
-			Height    int    `json:"height"`
-			Framerate int    `json:"framerate"`
-			Bitrate   string `json:"bitrate"` 
+			Source       string            `json:"source"`
+			Width        int               `json:"width"`
+			Height       int               `json:"height"`
+			Framerate    int               `json:"framerate"`
+			Bitrate      string            `json:"bitrate"`
+			Headers      map[string]string `json:"headers"`
+			AudioSource  string            `json:"audioSource"`
+			AudioHeaders map[string]string `json:"audioHeaders"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), 400)
 			return
 		}
-		log.Printf("[API] Setting source: %s (%dx%d @ %dfps)", req.Source, req.Width, req.Height, req.Framerate, req.Bitrate)
-		sidecar.StartFFmpeg(req.Source, req.Width, req.Height, req.Framerate, req.Bitrate)
+		log.Printf("[API] Setting source: %s (%dx%d @ %dfps, %d video headers, separateAudio=%t)", safeSourceForLog(req.Source), req.Width, req.Height, req.Framerate, len(req.Headers), req.AudioSource != "")
+		sidecar.StartFFmpeg(req.Source, req.Headers, req.AudioSource, req.AudioHeaders, req.Width, req.Height, req.Framerate, req.Bitrate)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 

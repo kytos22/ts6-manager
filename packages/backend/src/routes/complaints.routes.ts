@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireRole } from '../middleware/rbac.js';
+import { TSApiError } from '../middleware/error-handler.js';
 import type { ConnectionPool } from '../ts-client/connection-pool.js';
 
 export const complaintRoutes: Router = Router({ mergeParams: true });
@@ -14,7 +15,12 @@ complaintRoutes.get('/', async (req: Request, res: Response, next) => {
   try {
     const params = req.query.tcldbid ? { tcldbid: req.query.tcldbid } : undefined;
     res.json(await getClient(req).execute(getSid(req), 'complainlist', params));
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err instanceof TSApiError && err.code === 1281) {
+      return res.json([]);
+    }
+    next(err);
+  }
 });
 
 complaintRoutes.post('/', requireRole('admin'), async (req: Request, res: Response, next) => {

@@ -46,3 +46,77 @@ export function useDeleteServerGroup() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['server-groups'] }),
   });
 }
+
+function useGroupMutation<T>(mutationFn: (data: T) => Promise<any>, queryKey: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => qc.invalidateQueries({ queryKey: [queryKey] }),
+  });
+}
+
+export function useRenameServerGroup() {
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useGroupMutation(({ sgid, name }: { sgid: number; name: string }) => groupsApi.renameServerGroup(c!, s!, sgid, name), 'server-groups');
+}
+
+export function useCopyServerGroup() {
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useGroupMutation(({ sgid, name }: { sgid: number; name: string }) => groupsApi.copyServerGroup(c!, s!, sgid, name), 'server-groups');
+}
+
+export function useAddServerGroupMember() {
+  const qc = useQueryClient();
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useMutation({
+    mutationFn: ({ sgid, cldbid }: { sgid: number; cldbid: number }) => groupsApi.addServerGroupMember(c!, s!, sgid, cldbid),
+    onSuccess: (_, data) => qc.invalidateQueries({ queryKey: ['server-group-members', c, s, data.sgid] }),
+  });
+}
+
+export function useRemoveServerGroupMember() {
+  const qc = useQueryClient();
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useMutation({
+    mutationFn: ({ sgid, cldbid }: { sgid: number; cldbid: number }) => groupsApi.removeServerGroupMember(c!, s!, sgid, cldbid),
+    onSuccess: (_, data) => qc.invalidateQueries({ queryKey: ['server-group-members', c, s, data.sgid] }),
+  });
+}
+
+export function useCreateChannelGroup() {
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useGroupMutation((name: string) => groupsApi.createChannelGroup(c!, s!, name), 'channel-groups');
+}
+
+export function useDeleteChannelGroup() {
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useGroupMutation((cgid: number) => groupsApi.deleteChannelGroup(c!, s!, cgid), 'channel-groups');
+}
+
+export function useRenameChannelGroup() {
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useGroupMutation(({ cgid, name }: { cgid: number; name: string }) => groupsApi.renameChannelGroup(c!, s!, cgid, name), 'channel-groups');
+}
+
+export function useCopyChannelGroup() {
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useGroupMutation(({ cgid, name }: { cgid: number; name: string }) => groupsApi.copyChannelGroup(c!, s!, cgid, name), 'channel-groups');
+}
+
+export function useChannelGroupClients(cgid: number | null) {
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useQuery({
+    queryKey: ['channel-group-clients', c, s, cgid],
+    queryFn: () => groupsApi.channelGroupClients(c!, s!, cgid!),
+    enabled: !!c && !!s && !!cgid,
+  });
+}
+
+export function useAssignChannelGroup() {
+  const qc = useQueryClient();
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useMutation({
+    mutationFn: ({ cgid, cid, cldbid }: { cgid: number; cid: number; cldbid: number }) => groupsApi.assignChannelGroup(c!, s!, cgid, cid, cldbid),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['channel-group-clients'] }),
+  });
+}

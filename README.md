@@ -176,12 +176,21 @@ docker compose up -d
 ### Building from Source
 
 ```bash
-git clone https://github.com/clusterzx/ts6-manager.git
+git clone https://github.com/kytos22/ts6-manager.git
 cd ts6-manager
 echo "JWT_SECRET=$(openssl rand -base64 32)" >> .env
 echo "ENCRYPTION_KEY=$(openssl rand -base64 32)" >> .env
 docker compose -f docker-compose.local.yml up -d --build
 ```
+
+`docker-compose.local.yml` builds the backend, frontend, and media sidecar from
+this checkout, so new installations receive the fork's complete feature set.
+The standard `docker-compose.yml` intentionally continues to reference the
+upstream prebuilt images.
+
+See [`docs/LOCAL_ACTIONS.md`](docs/LOCAL_ACTIONS.md) for the full catalogue of
+the management, security, icon, logging, client, channel, and interface changes
+maintained by this fork.
 
 ### Coolify / Reverse Proxy
 

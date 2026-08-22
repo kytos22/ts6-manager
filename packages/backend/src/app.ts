@@ -33,6 +33,8 @@ import { widgetRoutes } from './routes/widget.routes.js';
 import { setupRoutes } from './routes/setup.routes.js';
 import { settingsRoutes } from './routes/settings.routes.js';
 import { requireServerAccess } from './middleware/server-access.js';
+import { auditAdminActions } from './middleware/audit.js';
+import { operationsRoutes } from './routes/operations.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -76,6 +78,7 @@ export function createApp(): Express {
 
   // Protected routes
   app.use('/api', authMiddleware);
+  app.use('/api', auditAdminActions);
   app.use('/api/servers', serverRoutes);
 
   // H9: Server access control on all :configId routes
@@ -93,6 +96,7 @@ export function createApp(): Express {
   app.use('/api/servers/:configId/vs/:sid/messages', serverAccess, messageRoutes);
   app.use('/api/servers/:configId/vs/:sid/logs', serverAccess, logRoutes);
   app.use('/api/servers/:configId/instance', serverAccess, instanceRoutes);
+  app.use('/api/servers/:configId/operations', serverAccess, operationsRoutes);
   app.use('/api/servers/:configId/vs/:sid/dashboard', serverAccess, dashboardRoutes);
   app.use('/api/bots', botRoutes);
   app.use('/api/users', userRoutes);

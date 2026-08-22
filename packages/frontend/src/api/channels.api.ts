@@ -16,6 +16,8 @@ export const channelsApi = {
     api.delete(`${base(configId, sid)}/${cid}`),
   move: (configId: number, sid: number, cid: number, data: any) =>
     api.post(`${base(configId, sid)}/${cid}/move`, data).then((r) => r.data),
+  message: (configId: number, sid: number, cid: number, msg: string) =>
+    api.post(`${base(configId, sid)}/${cid}/message`, { msg }).then((r) => r.data),
   permissions: (configId: number, sid: number, cid: number) =>
     api.get(`${base(configId, sid)}/${cid}/permissions`).then((r) => r.data),
 };

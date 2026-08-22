@@ -34,6 +34,8 @@ const ALLOWED_SERVER_EDIT_PARAMS = new Set([
   'virtualserver_hostbanner_mode', 'virtualserver_hostbutton_tooltip',
   'virtualserver_hostbutton_url', 'virtualserver_hostbutton_gfx_url',
   'virtualserver_icon_id', 'virtualserver_codec_encryption_mode',
+  'virtualserver_max_download_total_bandwidth', 'virtualserver_max_upload_total_bandwidth',
+  'virtualserver_download_quota', 'virtualserver_upload_quota',
   'virtualserver_needed_identity_security_level', 'virtualserver_min_client_version',
   'virtualserver_antiflood_points_tick_reduce', 'virtualserver_antiflood_points_needed_command_block',
   'virtualserver_antiflood_points_needed_ip_block',

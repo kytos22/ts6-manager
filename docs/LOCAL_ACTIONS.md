@@ -1,0 +1,110 @@
+# Local action list
+
+This file tracks pending TS6 Manager work and locally completed improvements
+that must be preserved when rebasing onto a future upstream release.
+
+## Pending
+
+- No approved management items remain pending after the Operations release.
+- Preserve the product invariant that Channels and Clients remain separate
+  user-facing sections even when they share internal action components.
+
+## Completed recently
+
+- Channels has a denser client-like visual hierarchy with live summary cards,
+  clearer channel/client states and native spacer interpretation. Only root,
+  permanent channels qualify; `[cspacer]`, `[lspacer]`, `[rspacer]`,
+  `[*spacer]`, blank spacers and Markdown-style divider payloads render with
+  their respective alignment or repetition while admin actions remain
+  available on hover. Channel banners are requested efficiently with
+  `channellist -banners` and rendered behind their channel row using the TS6
+  no-adjustment, stretch or preserve-aspect mode plus a readability overlay.
+  On an HTTP panel, a failed HTTPS banner may retry over HTTP. This supports
+  legacy file hosts whose HTTPS endpoint rejects SNI while their HTTP endpoint
+  still serves the image normally.
+- Reliable channel messages use a short-lived isolated WebQuery connection,
+  move only that Query identity into the selected channel, send to its current
+  channel, and immediately close it. The shared panel connection and real
+  clients are never moved.
+- Virtual-server settings include the four documented transfer controls:
+  upload/download bandwidth in bytes per second and upload/download quota in
+  MB, with zero documented in the UI as unlimited.
+- Operations provides an administrator-only temporary-password manager,
+  encrypted snapshot library with keep-files restore protection and explicit
+  RESTORE confirmation, WebQuery API-key and SSH Query-login management,
+  connection health, operational alerts, a live TeamSpeak event feed, and an
+  append-only administrator action trail that deliberately excludes request
+  bodies and secrets.
+
+- Server Groups now provides administrator-only create, rename, copy, delete,
+  inline icon assignment, searchable database member add/remove, and deep links
+  into its selected permission layer. Default and non-regular groups are
+  protected from deletion.
+- Channel Groups now provides administrator-only create, rename, copy, delete,
+  inline icon assignment, client/channel assignments, assignment inspection,
+  and deep links into its selected permission layer. Copies reproduce the
+  source permissions and roll back the new group if copying fails; default and
+  non-regular groups are protected from deletion.
+- Privilege keys identify their server group or channel group and target
+  channel by name.
+- Custom group and channel icons used by privilege keys are downloaded through
+  authenticated TeamSpeak file transfer and cached with SHA-256 ETag
+  revalidation.
+- Viewer access is enforced end to end: server lists and server details are
+  limited to explicit assignments, and persisted selections are cleared when
+  they are no longer accessible.
+- Administrators can assign servers when creating or editing viewer accounts.
+- Global bot, widget, and WebSocket data is restricted to administrators, and
+  the panel prevents removing the last active administrator or one's own
+  administrator access.
+- The log line selector paginates TeamSpeak's 100-line Query limit and returns
+  all available entries when 250 or 500 are requested.
+- Actual custom TeamSpeak icons are shown in the client, server-group,
+  channel-group, channel, and privilege-key lists through one cached component.
+- The icon manager lists and searches the server library, uploads supported
+  images with TeamSpeak-compatible CRC32 IDs, assigns or replaces icons on the
+  virtual server, server groups, channel groups, and connected clients,
+  removes assignments, and deletes files with confirmation.
+- Direct channel icon assignment is intentionally disabled in the manager:
+  this TS6 build advertises channel_icon_id in Query help but returns error
+  1538 for an idempotent channeledit request. Existing channel icons remain
+  visible and downloadable.
+- The channel tree supports dragging connected clients to another channel and
+  provides per-client actions for moving, private messaging, poking, kicking,
+  and a confirmed one-hour ban.
+- Channels offers a persistent TS6-style narrow tree mode alongside the full
+  width layout. Channel banners are centered inside the usable row area after
+  each subchannel's indentation, matching the visual alignment of the native
+  client instead of centering against the whole panel width.
+- Channel management includes an advanced editor for identity, description,
+  Opus codec and quality, encryption, client/family limits, needed talk power,
+  permanence, default-channel behavior, delete delay, banner, and phonetic
+  name. Its action menu also links directly to channel permissions and can move
+  all connected clients safely while reporting partial failures.
+- Clients has its own management workflow with technical details, current
+  channel, movement, server-group add/remove, channel-group assignment, direct
+  permissions, personal icon assignment, private message, poke, confirmed
+  channel/server kicks, and configurable confirmed bans. Viewers can inspect
+  details but all mutations remain administrator-only.
+- Client details preserve the live connection ID after `clientinfo` loads, so
+  delayed actions cannot generate `clients/NaN` requests. Server-group
+  assignment offers only regular assignable groups; backend validation also
+  rejects template and Query groups before contacting TeamSpeak.
+- Client profile management can edit the stored description (validated to the
+  TS6 200-character limit) and the connected client's talker flag through a
+  narrowly whitelisted administrator-only backend route.
+- Virtual Servers has an administrator-only settings editor for identity,
+  password, welcome and host messages, slots, default groups, encryption,
+  identity/client-version requirements, anti-flood thresholds, banner, host
+  button, and logging. It submits only modified fields; start and stop are
+  administrator-only and require explicit confirmation before execution.
+- The administrator/viewer control audit is complete. Sensitive pages are
+  hidden in navigation and protected by AdminRoute, while their write routes
+  also require the admin role in the backend. Viewer-visible Channels and
+  Clients retain read-only inspection but gate every mutation behind isAdmin.
+- Every account has a persistent responsive interface scale (90%, 100%, 110%,
+  125%, or 140%) based on the root UI size. It enlarges rem-based text and
+  controls without changing the browser viewport or breaking portal menus. A
+  compact selector beside the light/dark toggle mirrors the Settings control.
+- Client action menus in Channels include a direct Manage client deep link
+  that opens the matching live client in the dedicated Clients workflow.

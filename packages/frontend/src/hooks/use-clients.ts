@@ -58,3 +58,11 @@ export function usePokeClient() {
       clientsApi.poke(c!, s!, clid, msg),
   });
 }
+
+export function useMessageClient() {
+  const { selectedConfigId: c, selectedSid: s } = useServerStore();
+  return useMutation({
+    mutationFn: ({ clid, msg }: { clid: number; msg: string }) =>
+      clientsApi.message(c!, s!, clid, msg),
+  });
+}

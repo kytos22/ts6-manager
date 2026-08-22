@@ -48,8 +48,19 @@ async function main() {
         const wsUrl = new URL(req.url!, `http://${req.headers.host}`);
         const token = wsUrl.searchParams.get('token');
         if (!token) return done(false, 401, 'Missing token');
-        jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
-        done(true);
+        const payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as { id?: number };
+        if (!payload.id) return done(false, 401, 'Invalid token');
+
+        // Events are currently global and not tagged with a server scope.
+        // Until event-level filtering exists, only admins may open this channel.
+        prisma.user.findUnique({
+          where: { id: payload.id },
+          select: { enabled: true, role: true },
+        }).then((user: { enabled: boolean; role: string } | null) => {
+          if (!user || !user.enabled) return done(false, 401, 'User disabled');
+          if (user.role !== 'admin') return done(false, 403, 'Admin access required');
+          done(true);
+        }).catch(() => done(false, 500, 'Authentication failed'));
       } catch {
         done(false, 401, 'Invalid token');
       }

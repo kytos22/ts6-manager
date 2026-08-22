@@ -22,7 +22,7 @@ export default function WidgetPage() {
     queryFn: () => axios.get(`/api/widget/${token}/data`).then((r) => r.data),
     enabled: !!token,
     refetchInterval: 30_000,
-    retry: 3,
+    retry: false,
   });
 
   if (isLoading) {

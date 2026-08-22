@@ -2,12 +2,15 @@ import { LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ServerSelector } from './ServerSelector';
 import { useAuthStore } from '@/stores/auth.store';
+import { useUiStore } from '@/stores/ui.store';
 import { useLogout } from '@/hooks/use-auth';
 
 export function Header() {
   const { user } = useAuthStore();
+  const { uiScale, setUiScale } = useUiStore();
   const logout = useLogout();
 
   return (
@@ -15,6 +18,18 @@ export function Header() {
       <ServerSelector />
 
       <div className="flex items-center gap-2">
+        <Select value={String(uiScale)} onValueChange={(value) => setUiScale(Number(value))}>
+          <SelectTrigger className="h-8 w-[82px] px-2 text-xs" aria-label="Interface scale" title="Interface scale">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="0.9">90%</SelectItem>
+            <SelectItem value="1">100%</SelectItem>
+            <SelectItem value="1.1">110%</SelectItem>
+            <SelectItem value="1.25">125%</SelectItem>
+            <SelectItem value="1.4">140%</SelectItem>
+          </SelectContent>
+        </Select>
         <ThemeToggle />
 
         <DropdownMenu>

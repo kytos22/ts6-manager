@@ -243,3 +243,37 @@ model StreamSession {
   endedAt        DateTime?
   peakViewers    Int       @default(0)
 }
+
+// Locally retained, encrypted TeamSpeak snapshots. Snapshot payloads can contain
+// client identities and permissions, so they are never stored as plain text.
+model ServerSnapshot {
+  id             Int      @id @default(autoincrement())
+  name           String
+  serverConfigId Int
+  virtualServerId Int
+  encryptedData  String
+  sizeBytes      Int
+  createdById    Int?
+  createdByName  String?
+  createdAt      DateTime @default(now())
+
+  @@index([serverConfigId, virtualServerId, createdAt])
+}
+
+// Append-only record of authenticated administrative mutations. Request bodies
+// are intentionally excluded so passwords, tokens and messages are not logged.
+model AuditLog {
+  id              Int      @id @default(autoincrement())
+  userId          Int?
+  username        String?
+  method          String
+  path            String
+  statusCode      Int
+  serverConfigId  Int?
+  virtualServerId Int?
+  ipAddress       String?
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([serverConfigId, createdAt])
+}

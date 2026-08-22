@@ -18,11 +18,28 @@ services:
       - JWT_REFRESH_EXPIRY=7d
       - FRONTEND_URL=http://localhost:3000
       - MUSIC_DIR=/data/music
+      - SIDECAR_URL=http://ts6-sidecar:9800
+      - YT_COOKIE_FILE=${YT_COOKIE_FILE:-}
     volumes:
       - backend-data:/app/packages/backend/data
       - music-data:/data/music
     ports:
       - "3001:3001"
+    depends_on:
+      - sidecar
+    networks:
+      - ts6-network
+
+  sidecar:
+    build:
+      context: .
+      dockerfile: Dockerfile.sidecar
+    container_name: ts6-sidecar
+    restart: unless-stopped
+    environment:
+      - SIDECAR_PORT=9800
+    ports:
+      - "9800:9800"
     networks:
       - ts6-network
 
