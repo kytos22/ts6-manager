@@ -30,14 +30,14 @@ describe('scoreCandidate', () => {
   };
 
   it('ranks an official-audio exact match with matching duration highest', () => {
-    const good = scoreCandidate(track, { id: 'a', title: 'The Weeknd - Blinding Lights (Official Audio)', artist: 'The Weeknd - Topic', duration: 200 });
-    const bad = scoreCandidate(track, { id: 'b', title: 'Blinding Lights LIVE cover karaoke', artist: 'Random', duration: 320 });
+    const good = scoreCandidate(track, { id: 'a', title: 'The Weeknd - Blinding Lights (Official Audio)', artist: 'The Weeknd - Topic', duration: 200, thumbnail: '' });
+    const bad = scoreCandidate(track, { id: 'b', title: 'Blinding Lights LIVE cover karaoke', artist: 'Random', duration: 320, thumbnail: '' });
     expect(good).toBeGreaterThan(bad);
     expect(good).toBeGreaterThan(100);
   });
 
   it('penalizes a missing artist and far-off duration', () => {
-    const score = scoreCandidate(track, { id: 'c', title: 'Some unrelated tune', artist: 'Nobody', duration: 30 });
+    const score = scoreCandidate(track, { id: 'c', title: 'Some unrelated tune', artist: 'Nobody', duration: 30, thumbnail: '' });
     expect(score).toBeLessThan(20);
   });
 });

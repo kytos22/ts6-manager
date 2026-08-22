@@ -18,6 +18,11 @@ export function canLocalLogin(user: { enabled: boolean; passwordHash: string | n
   return !!user && user.enabled && !!user.passwordHash;
 }
 
+export function requirePasswordHash(passwordHash: string | null): string {
+  if (!passwordHash) throw new AppError(400, 'Not available for SSO accounts');
+  return passwordHash;
+}
+
 // Short-lived token proving the password step passed, scoped to the MFA step.
 const MFA_CHALLENGE_TTL = '5m';
 function signMfaChallenge(userId: number): string {

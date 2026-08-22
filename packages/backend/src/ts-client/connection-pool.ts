@@ -41,6 +41,12 @@ export class ConnectionPool {
     return client;
   }
 
+  /** Return a configured client, reloading it from the database when needed. */
+  async getOrLoad(configId: number): Promise<WebQueryClient> {
+    if (!this.clients.has(configId)) await this.refreshClient(configId);
+    return this.getClient(configId);
+  }
+
   hasClient(configId: number): boolean {
     return this.clients.has(configId);
   }
