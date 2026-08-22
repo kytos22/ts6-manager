@@ -140,8 +140,8 @@ function ChannelBannerBackground({ node, subtle = false }: { node: ChannelNode; 
   const [source, setSource] = useState(configuredUrl);
   const [failed, setFailed] = useState(false);
   if (failed || !source || !/^https?:\/\//i.test(source)) return null;
-  const objectFit = node.channel_banner_mode === 1 ? 'fill' : node.channel_banner_mode === 2 ? 'cover' : 'none';
-  return <div className="pointer-events-none absolute inset-y-0 left-0 z-0 w-80 max-w-[60%] overflow-hidden">
+  const objectFit = node.channel_banner_mode === 1 ? 'fill' : 'cover';
+  return <div className="pointer-events-none absolute inset-y-0 left-0 z-0 w-full min-w-[40rem] overflow-hidden">
     <img
       src={source}
       alt=""
@@ -159,7 +159,14 @@ function ChannelBannerBackground({ node, subtle = false }: { node: ChannelNode; 
         }
       }}
     />
-    <div className={cn('absolute inset-0 bg-gradient-to-r from-black/10 via-black/30 to-black/75', subtle && 'from-black/5 via-black/20 to-black/60')} />
+    <div
+      className="absolute inset-0"
+      style={{
+        background: subtle
+          ? 'linear-gradient(90deg, transparent 0%, transparent 48%, rgba(0,0,0,0.18) 70%, rgba(0,0,0,0.68) 100%)'
+          : 'linear-gradient(90deg, transparent 0%, transparent 42%, rgba(0,0,0,0.28) 68%, rgba(0,0,0,0.88) 100%)',
+      }}
+    />
   </div>;
 }
 
