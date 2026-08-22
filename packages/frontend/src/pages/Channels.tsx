@@ -21,9 +21,10 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { PageLoader } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { TeamSpeakIcon } from '@/components/shared/TeamSpeakIcon';
+import { ClientAvatar } from '@/components/shared/ClientAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Hash, Plus, Trash2, Pencil, ChevronRight, ChevronDown, Users, Lock, Unlock, Volume2, MoreHorizontal, Move, MessageSquare, Zap, LogOut, Ban, KeyRound, UserRoundCog, PanelLeft, Maximize2 } from 'lucide-react';
+import { Hash, Plus, Trash2, Pencil, ChevronRight, ChevronDown, Users, Lock, Unlock, Volume2, VolumeX, MicOff, Clock3, MoreHorizontal, Move, MessageSquare, Zap, LogOut, Ban, KeyRound, UserRoundCog, PanelLeft, Maximize2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ChannelNode {
@@ -47,7 +48,12 @@ interface ClientInfo {
   client_nickname: string;
   client_type: string;
   client_away: number;
+  client_away_message: string;
+  client_flag_talking: number;
   client_input_muted: number;
+  client_output_muted: number;
+  client_input_hardware: number;
+  client_output_hardware: number;
 }
 
 type SpacerInfo = {
@@ -185,13 +191,26 @@ function ClientEntry({
       draggable={isAdmin}
       onDragStart={isAdmin ? handleDragStart : undefined}
     >
-      <div className="relative h-5 w-5 rounded-full bg-gradient-to-br from-primary/25 to-primary/5 ring-1 ring-primary/20 flex items-center justify-center text-[9px] font-semibold text-primary shrink-0">
-        {client.client_nickname?.[0]?.toUpperCase() || '?'}
-        <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border-2 border-background bg-emerald-400" />
+      <div className="relative flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary/25 to-primary/5 text-[9px] font-semibold text-primary ring-1 ring-primary/20">
+        <ClientAvatar
+          configId={Number(useServerStore.getState().selectedConfigId)}
+          sid={Number(useServerStore.getState().selectedSid)}
+          clid={client.clid}
+          nickname={client.client_nickname}
+        />
       </div>
+      <span className="flex min-w-4 shrink-0 items-center justify-center gap-0.5" aria-label="Client voice status">
+        {client.client_away === 1 && <Clock3 className="h-3.5 w-3.5 text-amber-400" aria-label={client.client_away_message || 'Away'} />}
+        {(client.client_output_muted === 1 || client.client_output_hardware === 0) && <VolumeX className="h-3.5 w-3.5 text-rose-400" aria-label="Output muted" />}
+        {(client.client_input_muted === 1 || client.client_input_hardware === 0) && <MicOff className="h-3.5 w-3.5 text-rose-400" aria-label="Microphone muted" />}
+        {client.client_away !== 1
+          && client.client_output_muted !== 1
+          && client.client_output_hardware !== 0
+          && client.client_input_muted !== 1
+          && client.client_input_hardware !== 0
+          && <span className={cn('h-2.5 w-2.5 rounded-full bg-sky-400 ring-2 ring-sky-400/15', client.client_flag_talking === 1 && 'bg-emerald-400 ring-emerald-400/20')} title={client.client_flag_talking === 1 ? 'Talking' : 'Available'} />}
+      </span>
       <span className="truncate flex-1">{client.client_nickname}</span>
-      {client.client_away === 1 && <Badge variant="warning" className="text-[8px] px-1 py-0 h-3.5">Away</Badge>}
-      {client.client_input_muted === 1 && !client.client_away && <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3.5">Muted</Badge>}
       {isAdmin && (
         <div className="ml-1 flex w-7 shrink-0 self-stretch items-center justify-center border-l border-border/40 bg-background/35">
           <DropdownMenu>
@@ -482,7 +501,12 @@ export default function Channels() {
         client_nickname: c.client_nickname || '?',
         client_type: String(c.client_type),
         client_away: Number(c.client_away) || 0,
+        client_away_message: String(c.client_away_message || ''),
+        client_flag_talking: Number(c.client_flag_talking) || 0,
         client_input_muted: Number(c.client_input_muted) || 0,
+        client_output_muted: Number(c.client_output_muted) || 0,
+        client_input_hardware: Number(c.client_input_hardware) === 0 ? 0 : 1,
+        client_output_hardware: Number(c.client_output_hardware) === 0 ? 0 : 1,
       };
       if (!map.has(cid)) map.set(cid, []);
       map.get(cid)!.push(entry);

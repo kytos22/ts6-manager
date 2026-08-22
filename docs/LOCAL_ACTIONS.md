@@ -11,6 +11,12 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
+- Connected clients in Channels use their live myTeamSpeak profile avatar when
+  available, fetched through an authenticated, host-allowlisted, size-limited
+  backend proxy with verified image signatures and a five-minute cache. Initials
+  remain the fallback. Voice presence mirrors TeamSpeak state: available is a
+  blue dot, active speech is green, and AFK, microphone mute, or output mute use
+  distinct status icons derived from the live `clientlist -away -voice` fields.
 - Channel rows use three physically separate flex lanes: a clipped flexible
   channel identity, fixed-width properties (ID, password, population), and
   fixed-width actions. Channel indentation and banners now live entirely

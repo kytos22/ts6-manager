@@ -8,6 +8,8 @@ export const clientsApi = {
     api.get(base(configId, sid)).then((r) => r.data),
   get: (configId: number, sid: number, clid: number) =>
     api.get(`${base(configId, sid)}/${clid}`).then((r) => r.data),
+  avatar: (configId: number, sid: number, clid: number) =>
+    api.get(`${base(configId, sid)}/${clid}/avatar`, { responseType: 'blob' }).then((r) => r.data as Blob),
   edit: (configId: number, sid: number, clid: number, data: { cldbid: number; client_description?: string; client_is_talker?: number }) =>
     api.put(`${base(configId, sid)}/${clid}`, data).then((r) => r.data),
   database: (configId: number, sid: number, start = 0, duration = 100) =>
