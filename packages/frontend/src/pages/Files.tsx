@@ -67,7 +67,9 @@ export default function Files() {
     queryFn: () => filesApi.summaries(c!, s!, channelIds),
     enabled: !!c && !!s && channelIds.length > 0,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: false,
   });
   const summariesByChannel = useMemo(() => {

@@ -149,8 +149,8 @@ function ChannelBannerBackground({ node, subtle = false }: { node: ChannelNode; 
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
-      className="pointer-events-none absolute inset-0 z-0 h-full w-full object-center"
-      style={{ objectFit, objectPosition: '50% 50%' }}
+      className="pointer-events-none absolute inset-0 z-0 h-full w-full object-left"
+      style={{ objectFit, objectPosition: 'left center' }}
       onError={() => {
         if (source.startsWith('https://') && window.location.protocol === 'http:') {
           setSource(`http://${source.slice('https://'.length)}`);
@@ -159,7 +159,7 @@ function ChannelBannerBackground({ node, subtle = false }: { node: ChannelNode; 
         }
       }}
     />
-    <div className={cn('pointer-events-none absolute inset-0 z-0 bg-gradient-to-r from-background/90 via-background/55 to-background/80', subtle && 'from-background/75 via-background/30 to-background/70')} />
+    <div className={cn('pointer-events-none absolute inset-0 z-0 bg-gradient-to-r from-black/10 via-black/30 to-black/75', subtle && 'from-black/5 via-black/20 to-black/60')} />
   </>;
 }
 

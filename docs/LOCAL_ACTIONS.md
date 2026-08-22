@@ -11,6 +11,10 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
+- Channel banners are anchored to the left edge of their channel row and fade
+  gently to black toward the right, matching the TeamSpeak 6 presentation.
+- File Manager storage summaries run when the File Manager is opened and do
+  not poll in the background or refetch on window focus/network reconnect.
 - File Manager channel rows show recursively calculated file count, folder
   count, and total file size before a channel is opened. A protected backend
   summary endpoint walks each channel sequentially on the existing SSH Query
