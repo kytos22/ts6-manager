@@ -10,13 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { PageLoader } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { cn, formatBytes } from '@/lib/utils';
 import {
-  FolderOpen, File, Folder, ArrowLeft, FolderPlus, Trash2, Hash, HardDrive, AlertTriangle, RefreshCw,
+  FolderOpen, File, Folder, ArrowLeft, FolderPlus, Trash2, Hash, HardDrive, AlertTriangle, RefreshCw, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,6 +36,9 @@ interface ChannelFileSummary {
   unavailable?: boolean;
 }
 
+type FileSortField = 'name' | 'size' | 'date';
+type FileSortDirection = 'asc' | 'desc';
+
 export default function Files() {
   const { t } = useTranslation();
   const { selectedConfigId: c, selectedSid: s } = useServerStore();
@@ -45,6 +49,8 @@ export default function Files() {
   const [showMkdir, setShowMkdir] = useState(false);
   const [newDirName, setNewDirName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null);
+  const [sortField, setSortField] = useState<FileSortField>('name');
+  const [sortDirection, setSortDirection] = useState<FileSortDirection>('asc');
 
   // Fetch channel list for selector
   const { data: channelData } = useQuery({
@@ -95,11 +101,16 @@ export default function Files() {
       datetime: Number(f.datetime) || 0,
       type: Number(f.type),
     })).sort((a: FileEntry, b: FileEntry) => {
-      // Directories first, then alphabetical
+      // Keep directories grouped first, then apply the selected ordering.
       if (a.type !== b.type) return a.type - b.type;
-      return a.name.localeCompare(b.name);
+      let comparison = 0;
+      if (sortField === 'size') comparison = a.size - b.size;
+      else if (sortField === 'date') comparison = a.datetime - b.datetime;
+      else comparison = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+      if (comparison === 0) comparison = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [fileData]);
+  }, [fileData, sortField, sortDirection]);
 
   const mkdirMutation = useMutation({
     mutationFn: (dirname: string) => filesApi.createDir(c!, s!, selectedCid!, dirname),
@@ -246,11 +257,29 @@ export default function Files() {
                   ))}
                 </div>
               </div>
-              {selectedCid && (
+              {selectedCid && <div className="flex items-center gap-2">
+                <Select value={sortField} onValueChange={(value) => setSortField(value as FileSortField)}>
+                  <SelectTrigger className="h-7 w-[8.5rem] text-xs" aria-label={t('files.sortBy')}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">{t('files.sortName')}</SelectItem>
+                    <SelectItem value="size">{t('files.sortSize')}</SelectItem>
+                    <SelectItem value="date">{t('files.sortDate')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setSortDirection((direction) => direction === 'asc' ? 'desc' : 'asc')}
+                  title={sortDirection === 'asc' ? t('files.sortAscending') : t('files.sortDescending')}
+                  aria-label={sortDirection === 'asc' ? t('files.sortAscending') : t('files.sortDescending')}
+                >
+                  {sortDirection === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
+                </Button>
                 <Badge variant="secondary" className="text-[10px] font-mono-data">
                   {t('files.itemCount', { count: files.length })}
                 </Badge>
-              )}
+              </div>}
             </div>
           </CardHeader>
           <CardContent className="p-0">

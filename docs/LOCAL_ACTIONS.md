@@ -11,6 +11,10 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
+- Channel banners render inside a consistent 20rem-wide left-aligned viewport
+  (capped responsively at 60% of the row) so different source images line up.
+- File Manager supports name, size, or modified-date ordering in ascending or
+  descending direction while retaining directories before files.
 - Channel banners are anchored to the left edge of their channel row and fade
   gently to black toward the right, matching the TeamSpeak 6 presentation.
 - File Manager storage summaries run only when the File Manager is opened and

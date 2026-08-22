@@ -141,7 +141,7 @@ function ChannelBannerBackground({ node, subtle = false }: { node: ChannelNode; 
   const [failed, setFailed] = useState(false);
   if (failed || !source || !/^https?:\/\//i.test(source)) return null;
   const objectFit = node.channel_banner_mode === 1 ? 'fill' : node.channel_banner_mode === 2 ? 'cover' : 'none';
-  return <>
+  return <div className="pointer-events-none absolute inset-y-0 left-0 z-0 w-80 max-w-[60%] overflow-hidden">
     <img
       src={source}
       alt=""
@@ -149,7 +149,7 @@ function ChannelBannerBackground({ node, subtle = false }: { node: ChannelNode; 
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
-      className="pointer-events-none absolute inset-0 z-0 h-full w-full object-left"
+      className="absolute inset-0 h-full w-full object-left"
       style={{ objectFit, objectPosition: 'left center' }}
       onError={() => {
         if (source.startsWith('https://') && window.location.protocol === 'http:') {
@@ -159,8 +159,8 @@ function ChannelBannerBackground({ node, subtle = false }: { node: ChannelNode; 
         }
       }}
     />
-    <div className={cn('pointer-events-none absolute inset-0 z-0 bg-gradient-to-r from-black/10 via-black/30 to-black/75', subtle && 'from-black/5 via-black/20 to-black/60')} />
-  </>;
+    <div className={cn('absolute inset-0 bg-gradient-to-r from-black/10 via-black/30 to-black/75', subtle && 'from-black/5 via-black/20 to-black/60')} />
+  </div>;
 }
 
 function ClientEntry({
