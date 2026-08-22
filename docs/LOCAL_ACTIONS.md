@@ -11,6 +11,12 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
+- Channel, spacer, and connected-client rows share the exact same right-side
+  geometry: a 7.25 rem property reservation followed by the 2 rem action cell,
+  so every options button forms one vertical column. Channel and spacer banners
+  now fill their clipped identity lane and apply `object-fit`/`object-position`
+  within that real lane, keeping TS6 centering correct in narrow mode instead of
+  retaining an intrinsically sized image against the left edge.
 - Connected clients in Channels use their live myTeamSpeak profile avatar when
   available, fetched through an authenticated, host-allowlisted, size-limited
   backend proxy with verified image signatures and a five-minute cache. Initials

@@ -135,13 +135,12 @@ function buildTree(channels: any[]): ChannelNode[] {
   return roots;
 }
 
-function ChannelBannerBackground({ node, depth = 0, subtle = false, rightInset = 0 }: { node: ChannelNode; depth?: number; subtle?: boolean; rightInset?: number }) {
+function ChannelBannerBackground({ node, subtle = false }: { node: ChannelNode; subtle?: boolean }) {
   const configuredUrl = node.channel_banner_gfx_url?.trim() || '';
   const [source, setSource] = useState(configuredUrl);
   const [failed, setFailed] = useState(false);
   if (failed || !source || !/^https?:\/\//i.test(source)) return null;
   const objectFit = node.channel_banner_mode === 1 ? 'fill' : node.channel_banner_mode === 2 ? 'cover' : 'none';
-  const inset = Math.max(0, depth * 16);
   return <>
     <img
       src={source}
@@ -150,8 +149,8 @@ function ChannelBannerBackground({ node, depth = 0, subtle = false, rightInset =
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
-      className="pointer-events-none absolute bottom-0 right-0 top-0 z-0 h-full object-center"
-      style={{ objectFit, objectPosition: '50% 50%', left: `${inset}px`, right: `${rightInset}px`, width: 'auto' }}
+      className="pointer-events-none absolute inset-0 z-0 h-full w-full object-center"
+      style={{ objectFit, objectPosition: '50% 50%' }}
       onError={() => {
         if (source.startsWith('https://') && window.location.protocol === 'http:') {
           setSource(`http://${source.slice('https://'.length)}`);
@@ -160,7 +159,7 @@ function ChannelBannerBackground({ node, depth = 0, subtle = false, rightInset =
         }
       }}
     />
-    <div className={cn('pointer-events-none absolute bottom-0 right-0 top-0 z-0 bg-gradient-to-r from-background/90 via-background/55 to-background/80', subtle && 'from-background/75 via-background/30 to-background/70')} style={{ left: `${inset}px`, right: `${rightInset}px` }} />
+    <div className={cn('pointer-events-none absolute inset-0 z-0 bg-gradient-to-r from-background/90 via-background/55 to-background/80', subtle && 'from-background/75 via-background/30 to-background/70')} />
   </>;
 }
 
@@ -184,13 +183,16 @@ function ClientEntry({
   return (
     <div
       className={cn(
-        'relative flex min-h-8 items-center gap-2 rounded-md border border-transparent px-2 text-xs text-muted-foreground transition-colors group/client hover:border-border/50 hover:bg-muted/30 hover:text-foreground',
+        'relative flex min-h-8 items-stretch overflow-hidden rounded-md border border-transparent p-0 text-xs text-muted-foreground transition-colors group/client hover:border-border/50 hover:bg-muted/30 hover:text-foreground',
         isAdmin && 'cursor-grab active:cursor-grabbing',
       )}
-      style={{ paddingLeft: `${depth * 16 + 28}px` }}
       draggable={isAdmin}
       onDragStart={isAdmin ? handleDragStart : undefined}
     >
+      <div
+        className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden py-1 pr-2"
+        style={{ paddingLeft: `${depth * 16 + 28}px` }}
+      >
       <div className="relative flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary/25 to-primary/5 text-[9px] font-semibold text-primary ring-1 ring-primary/20">
         <ClientAvatar
           configId={Number(useServerStore.getState().selectedConfigId)}
@@ -211,12 +213,15 @@ function ClientEntry({
           && <span className={cn('h-2.5 w-2.5 rounded-full bg-sky-400 ring-2 ring-sky-400/15', client.client_flag_talking === 1 && 'bg-emerald-400 ring-emerald-400/20')} title={client.client_flag_talking === 1 ? 'Talking' : 'Available'} />}
       </span>
       <span className="truncate flex-1">{client.client_nickname}</span>
+      </div>
       {isAdmin && (
-        <div className="ml-1 flex w-7 shrink-0 self-stretch items-center justify-center border-l border-border/40 bg-background/35">
+        <>
+        <div aria-hidden="true" className="relative z-20 w-[7.25rem] shrink-0 border-l border-border/40 bg-background/55" />
+        <div className="relative z-20 flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/60 bg-background/95" title="Client actions">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/client:opacity-100 data-[state=open]:opacity-100"
+                className="rounded p-1 text-muted-foreground opacity-60 transition-opacity hover:bg-muted hover:text-foreground hover:opacity-100 group-hover/client:opacity-100 data-[state=open]:opacity-100"
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => event.stopPropagation()}
                 aria-label={`Actions for ${client.client_nickname}`}
@@ -236,6 +241,7 @@ function ClientEntry({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        </>
       )}
     </div>
   );
@@ -270,10 +276,10 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
     const lineContent = spacer.content || '─';
     const markdownRule = /^([-_*=_─━—·•])\1{2,}$/.test(lineContent);
     return (
-      <div className="group/spacer relative isolate flex min-h-7 items-center overflow-hidden rounded-md px-3 py-1" title={isAdmin ? node.channel_name : undefined}>
-        <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} depth={depth} subtle rightInset={isAdmin ? 32 : 0} />
-        <div className="relative z-10 flex w-full min-w-0 items-center">
-        <div className="min-w-0 flex-1">
+      <div className="group/spacer relative isolate flex min-h-7 items-stretch overflow-hidden rounded-md p-0" title={isAdmin ? node.channel_name : undefined}>
+        <div className="relative isolate flex min-w-0 flex-1 items-center overflow-hidden py-1 pr-3" style={{ paddingLeft: `${depth * 16 + 12}px` }}>
+        <ChannelBannerBackground key={node.channel_banner_gfx_url} node={node} subtle />
+        <div className="relative z-10 min-w-0 flex-1">
         {spacer.mode === 'blank' && !spacer.content && <div className="h-2 w-full" />}
         {spacer.mode === 'blank' && spacer.content && (markdownRule
           ? <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
@@ -283,8 +289,8 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
         {spacer.mode === 'left' && <div className="w-full pr-10 text-left text-xs font-semibold tracking-wide text-foreground/80">{spacer.content}</div>}
         {spacer.mode === 'right' && <div className="w-full pl-10 pr-8 text-right text-xs font-semibold tracking-wide text-foreground/80">{spacer.content}</div>}
         </div>
-        {isAdmin && <div className="ml-1 flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/40 bg-background/35"><DropdownMenu><DropdownMenuTrigger asChild><button className="rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover/spacer:opacity-100 data-[state=open]:opacity-100" aria-label={`Actions for spacer ${node.cid}`}><MoreHorizontal className="h-3.5 w-3.5" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48"><DropdownMenuItem onSelect={() => onEdit(node)}><Pencil className="mr-2 h-3.5 w-3.5" />Edit spacer</DropdownMenuItem><DropdownMenuItem onSelect={() => onPermissions(node.cid)}><KeyRound className="mr-2 h-3.5 w-3.5" />Permissions</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(node.cid, node.channel_name)}><Trash2 className="mr-2 h-3.5 w-3.5" />Delete spacer</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>}
         </div>
+        {isAdmin && <><div aria-hidden="true" className="relative z-20 w-[7.25rem] shrink-0 border-l border-border/40 bg-background/55" /><div className="relative z-20 flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/60 bg-background/95" title="Spacer actions"><DropdownMenu><DropdownMenuTrigger asChild><button className="rounded-md p-1 text-muted-foreground opacity-60 transition-opacity hover:bg-muted hover:text-foreground hover:opacity-100 group-hover/spacer:opacity-100 data-[state=open]:opacity-100" aria-label={`Actions for spacer ${node.cid}`}><MoreHorizontal className="h-3.5 w-3.5" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48"><DropdownMenuItem onSelect={() => onEdit(node)}><Pencil className="mr-2 h-3.5 w-3.5" />Edit spacer</DropdownMenuItem><DropdownMenuItem onSelect={() => onPermissions(node.cid)}><KeyRound className="mr-2 h-3.5 w-3.5" />Permissions</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(node.cid, node.channel_name)}><Trash2 className="mr-2 h-3.5 w-3.5" />Delete spacer</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></>}
       </div>
     );
   }
