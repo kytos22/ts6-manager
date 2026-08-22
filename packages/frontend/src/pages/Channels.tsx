@@ -23,7 +23,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { TeamSpeakIcon } from '@/components/shared/TeamSpeakIcon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Hash, Plus, Trash2, Pencil, ChevronRight, ChevronDown, Users, Lock, Volume2, MoreHorizontal, Move, MessageSquare, Zap, LogOut, Ban, KeyRound, UserRoundCog, PanelLeft, Maximize2 } from 'lucide-react';
+import { Hash, Plus, Trash2, Pencil, ChevronRight, ChevronDown, Users, Lock, Unlock, Volume2, MoreHorizontal, Move, MessageSquare, Zap, LogOut, Ban, KeyRound, UserRoundCog, PanelLeft, Maximize2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ChannelNode {
@@ -350,22 +350,35 @@ function ChannelTreeNode({ node, depth = 0, isAdmin, clientsByChannel, onDelete,
 
         </div>
         </div>
-        <div className="relative z-20 flex w-[5.5rem] shrink-0 items-center justify-end gap-1.5 border-l border-border/50 bg-background/90 px-2 backdrop-blur-[1px]">
-          <span className="shrink-0 rounded bg-muted/60 px-1.5 py-0.5 font-mono-data text-[9px] text-muted-foreground/70">#{node.cid}</span>
-          {node.channel_flag_password === 1 && <Lock className="h-3 w-3 text-amber-400/60" />}
-          {(node.total_clients > 0 || clients.length > 0) && (
-            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground font-mono-data">
-              <Users className="h-3 w-3" />
-              {clients.length || node.total_clients}
-            </span>
-          )}
+        <div
+          className="relative z-20 flex w-12 shrink-0 items-center justify-center border-l border-border/60 bg-background/90 px-1 backdrop-blur-[1px]"
+          title={`Channel ID ${node.cid}`}
+        >
+          <span className="max-w-full truncate rounded bg-muted/60 px-1.5 py-0.5 font-mono-data text-[9px] text-muted-foreground/80">#{node.cid}</span>
+        </div>
+        <div
+          className="relative z-20 flex w-7 shrink-0 items-center justify-center border-l border-border/60 bg-background/90 backdrop-blur-[1px]"
+          title={node.channel_flag_password === 1 ? 'Password protected' : 'No password'}
+        >
+          {node.channel_flag_password === 1
+            ? <Lock className="h-3 w-3 text-amber-400/80" />
+            : <Unlock className="h-3 w-3 text-emerald-400/55" />}
+        </div>
+        <div
+          className="relative z-20 flex w-10 shrink-0 items-center justify-center border-l border-border/60 bg-background/90 backdrop-blur-[1px]"
+          title={`${clients.length || node.total_clients || 0} connected clients`}
+        >
+          <span className="flex items-center gap-0.5 font-mono-data text-[10px] text-muted-foreground">
+            <Users className="h-3 w-3" />
+            {clients.length || node.total_clients || 0}
+          </span>
         </div>
         {isAdmin && (
-          <div className="relative z-20 flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/50 bg-background/95 backdrop-blur-[1px]">
+          <div className="relative z-20 flex w-8 shrink-0 self-stretch items-center justify-center border-l border-border/60 bg-background/95 backdrop-blur-[1px]" title="Channel actions">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 data-[state=open]:opacity-100"
+                  className="rounded p-1 text-muted-foreground opacity-60 transition-opacity hover:bg-muted hover:text-foreground hover:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => event.stopPropagation()}
                   aria-label={`Actions for ${node.channel_name}`}

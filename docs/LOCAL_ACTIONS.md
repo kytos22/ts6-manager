@@ -15,9 +15,13 @@ that must be preserved when rebasing onto a future upstream release.
   channel identity, fixed-width properties (ID, password, population), and
   fixed-width actions. Channel indentation and banners now live entirely
   inside the clipped identity lane, so neither can paint beneath the opaque
-  properties/action rails at any UI scale. Spacer and connected-client rows
-  retain their own reserved action rail. The complete TS6 narrow card uses the
-  available width up to its limit and is horizontally centered in the panel.
+  properties/action rails at any UI scale. Channel ID, password state, client
+  count, and actions each have a stable cell with their own vertical divider.
+  The security cell always identifies its state with an amber closed lock or a
+  subdued green open lock, and zero-client states retain their column so every
+  row remains aligned. Spacer and connected-client rows retain their own
+  reserved action rail. The complete TS6 narrow card uses the available width
+  up to its limit and is horizontally centered in the panel.
 - The media pipeline now uses a pinned yt-dlp nightly binary with SHA-256
   verification, shared command execution, coordinated hard timeouts and full
   diagnostics. Progressive playback keeps memory bounded for long media,
