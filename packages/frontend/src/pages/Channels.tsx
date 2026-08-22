@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useChannels, useCreateChannel, useDeleteChannel, useEditChannel, useMoveChannel } from '@/hooks/use-channels';
@@ -24,7 +24,7 @@ import { TeamSpeakIcon } from '@/components/shared/TeamSpeakIcon';
 import { ClientAvatar } from '@/components/shared/ClientAvatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Hash, Plus, Trash2, Pencil, ChevronRight, ChevronDown, Users, Lock, Unlock, Volume2, VolumeX, MicOff, Clock3, MoreHorizontal, Move, MessageSquare, Zap, LogOut, Ban, KeyRound, UserRoundCog, PanelLeft, Maximize2 } from 'lucide-react';
+import { Hash, Plus, Trash2, Pencil, ChevronRight, ChevronDown, Users, Lock, Unlock, Volume2, VolumeX, MicOff, Clock3, RefreshCw, MoreHorizontal, Move, MessageSquare, Zap, LogOut, Ban, KeyRound, UserRoundCog, PanelLeft, Maximize2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ChannelNode {
@@ -459,8 +459,8 @@ export default function Channels() {
   const queryClient = useQueryClient();
   const { selectedConfigId, selectedSid } = useServerStore();
   const isAdmin = useAuthStore((s) => s.isAdmin());
-  const { data: channelData, isLoading: channelsLoading } = useChannels();
-  const { data: clientData } = useClients();
+  const { data: channelData, isLoading: channelsLoading, isFetching: channelsFetching, dataUpdatedAt: channelsUpdatedAt } = useChannels();
+  const { data: clientData, isFetching: clientsFetching, dataUpdatedAt: clientsUpdatedAt } = useClients();
   const createChannel = useCreateChannel();
   const deleteChannel = useDeleteChannel();
   const editChannel = useEditChannel();
@@ -489,6 +489,13 @@ export default function Channels() {
   const [channelMessage, setChannelMessage] = useState('');
   const [sendingChannelMessage, setSendingChannelMessage] = useState(false);
   const [narrowView, setNarrowView] = useState(() => localStorage.getItem('ts6-channels-narrow-view') === '1');
+  const [refreshClock, setRefreshClock] = useState(() => Date.now());
+
+  useEffect(() => {
+    setRefreshClock(Date.now());
+    const timer = window.setInterval(() => setRefreshClock(Date.now()), 500);
+    return () => window.clearInterval(timer);
+  }, [selectedConfigId, selectedSid]);
 
   const tree = useMemo(() => {
     if (!channelData || !Array.isArray(channelData)) return [];
@@ -718,6 +725,11 @@ export default function Channels() {
   const spacerCount = tree.filter((node) => parseSpacer(node) !== null).length;
   const channelCount = Math.max(0, (Array.isArray(channelData) ? channelData.length : 0) - spacerCount);
   const occupiedChannels = Array.from(clientsByChannel.values()).filter((clients) => clients.length > 0).length;
+  const lastRefreshAt = Math.max(channelsUpdatedAt || 0, clientsUpdatedAt || 0);
+  const refreshSeconds = lastRefreshAt > 0
+    ? Math.max(0, Math.ceil((lastRefreshAt + 10_000 - refreshClock) / 1000))
+    : 0;
+  const refreshing = channelsFetching || clientsFetching;
   const changeViewMode = (narrow: boolean) => {
     setNarrowView(narrow);
     localStorage.setItem('ts6-channels-narrow-view', narrow ? '1' : '0');
@@ -733,11 +745,11 @@ export default function Channels() {
         <div className="flex flex-wrap items-center gap-2"><div className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs"><Hash className="h-3.5 w-3.5 text-primary" /><span className="font-semibold">{channelCount}</span><span className="text-muted-foreground">channels</span></div><div className="flex items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs"><Users className="h-3.5 w-3.5 text-emerald-400" /><span className="font-semibold">{totalClients}</span><span className="text-muted-foreground">online</span></div><div className="hidden items-center gap-2 rounded-lg border bg-card/60 px-3 py-1.5 text-xs sm:flex"><Volume2 className="h-3.5 w-3.5 text-violet-400" /><span className="font-semibold">{occupiedChannels}</span><span className="text-muted-foreground">active</span></div><div className="flex items-center rounded-lg border bg-card/60 p-0.5"><Button type="button" size="sm" variant={narrowView ? 'secondary' : 'ghost'} className="h-7 px-2 text-xs" onClick={() => changeViewMode(true)} title="Use a TeamSpeak-like narrow server tree"><PanelLeft className="mr-1 h-3.5 w-3.5" />TS6 narrow</Button><Button type="button" size="sm" variant={!narrowView ? 'secondary' : 'ghost'} className="h-7 px-2 text-xs" onClick={() => changeViewMode(false)} title="Use all available width"><Maximize2 className="mr-1 h-3.5 w-3.5" />Full</Button></div>{isAdmin && <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="mr-1 h-4 w-4" />Create Channel</Button>}</div>
       </div>
 
-      <Card className={cn('w-full overflow-hidden border-border/70 shadow-sm transition-[max-width] duration-200', narrowView && 'mx-auto max-w-[36rem]')}>
+      <Card className={cn('w-full overflow-hidden border-border/70 shadow-sm transition-[max-width] duration-200', narrowView && 'mx-auto max-w-[40rem]')}>
         <CardHeader className="border-b bg-gradient-to-r from-primary/[0.06] via-card to-card px-4 py-3">
           <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-sm font-medium">
             <span className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10"><Volume2 className="h-4 w-4 text-primary" /></span><span>TeamSpeak channel tree</span></span>
-            <span className="flex items-center gap-3 text-[10px] font-normal text-muted-foreground"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-400" />Connected client</span><span>{spacerCount} visual spacers</span></span>
+            <span className="flex items-center gap-3 text-[10px] font-normal text-muted-foreground"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-400" />Connected client</span><span className="flex min-w-[5.75rem] items-center justify-end gap-1.5" title="Live channel and client data refresh every 10 seconds"><RefreshCw className={cn('h-3 w-3 text-sky-400', refreshing && 'animate-spin')} />{refreshing ? 'Refreshing…' : `Refresh in ${refreshSeconds}s`}</span></span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-2">

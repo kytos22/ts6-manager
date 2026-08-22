@@ -11,6 +11,11 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
+- The Channels card header replaces the spacer count with a live countdown to
+  the next ten-second channel/client refresh and switches to a spinning
+  `Refreshing...` state while either query is active. TS6 narrow grows from 36
+  to 40 rem; all property/action rails remain fixed, so the entire four-rem
+  increase is absorbed by the flexible channel identity and banner lane.
 - Channel, spacer, and connected-client rows share the exact same right-side
   geometry: a 7.25 rem property reservation followed by the 2 rem action cell,
   so every options button forms one vertical column. Channel and spacer banners
