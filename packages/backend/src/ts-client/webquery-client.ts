@@ -7,6 +7,7 @@ import { config } from '../config.js';
 export class WebQueryClient {
   private http: AxiosInstance;
   private agent: http.Agent | https.Agent;
+  private hasApiKey: boolean;
 
   constructor(
     host: string,
@@ -15,6 +16,7 @@ export class WebQueryClient {
     useHttps: boolean = false,
   ) {
     const protocol = useHttps ? 'https' : 'http';
+    this.hasApiKey = !!apiKey.trim();
 
     // Use a single persistent TCP connection (keep-alive) to the TS WebQuery API.
     // Without this, each concurrent request opens a new TCP connection, and the
@@ -99,14 +101,46 @@ export class WebQueryClient {
     return Object.keys(cleaned).length > 0 ? cleaned : undefined;
   }
 
-  // Test connection
-  async testConnection(): Promise<boolean> {
+  // Read-only probes: beta13 can answer /version in unauthenticated guest scope.
+  async inspectConnection() {
+    const result = { success: false, reachable: false, authenticated: false,
+      permissions: false, version: '', stage: 'connection', detail: '' };
     try {
-      await this.execute(0, 'version');
-      return true;
-    } catch {
-      return false;
+      const rawVersion = await this.execute(0, 'version');
+      result.version = String((Array.isArray(rawVersion) ? rawVersion[0] : rawVersion)?.version || '');
+      if (!result.version) throw new Error('Server returned no version information');
+      result.reachable = true;
+      result.stage = 'authentication';
+      if (!this.hasApiKey) throw new Error('An API key is required; guest access is not a management connection');
+      const rawIdentity = await this.execute(0, 'whoami');
+      const identity = Array.isArray(rawIdentity) ? rawIdentity[0] : rawIdentity;
+      if (!(Number(identity?.client_database_id) > 0)
+        || String(identity?.client_login_name).toLowerCase() === 'guest'
+        || String(identity?.client_unique_identifier).toLowerCase() === 'guest') {
+        throw new Error('Query session is a guest or has no authenticated identity');
+      }
+      result.authenticated = true;
+      result.stage = 'permissions';
+      await this.execute(0, 'serverlist');
+      try {
+        // Verify credential-management permission without modifying state or
+        // returning any credential metadata to the caller.
+        await this.execute(0, 'apikeylist', { cldbid: '*', duration: 1 });
+      } catch (error) {
+        if (!(error instanceof TSApiError && error.code === 1281)) throw error;
+      }
+      result.permissions = true;
+      result.success = true;
+      result.stage = 'complete';
+      result.detail = 'Authenticated; server listing and API-key management permission verified';
+    } catch (error: any) {
+      result.detail = `${result.stage}: ${error.message || 'Check failed'}`;
     }
+    return result;
+  }
+
+  async testConnection(): Promise<boolean> {
+    return (await this.inspectConnection()).success;
   }
 
   // Destroy the HTTP agent, closing all keep-alive sockets.

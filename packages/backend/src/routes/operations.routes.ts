@@ -3,6 +3,7 @@ import { requireRole } from '../middleware/rbac.js';
 import { AppError, TSApiError } from '../middleware/error-handler.js';
 import type { ConnectionPool } from '../ts-client/connection-pool.js';
 import { encrypt, decrypt } from '../utils/crypto.js';
+import { keepFilesCompatibility } from '../ts-client/compatibility.js';
 
 export const operationsRoutes: Router = Router({ mergeParams: true });
 operationsRoutes.use(requireRole('admin'));
@@ -193,10 +194,12 @@ operationsRoutes.get('/health', async (req, res, next) => {
     const { configId, sid } = ids(req); validSid(sid);
     const checks: any[] = [];
     let serverInfo: any = null;
-    try {
-      const version = one(await client(req).execute(0, 'version'));
-      checks.push({ id: 'webquery', label: 'WebQuery', status: 'ok', detail: version?.version || 'Connected' });
-    } catch (error: any) { checks.push({ id: 'webquery', label: 'WebQuery', status: 'error', detail: error.message }); }
+    const connection = await client(req).inspectConnection();
+    checks.push({ id: 'webquery', label: 'WebQuery', status: connection.reachable ? 'ok' : 'error', detail: connection.version || connection.detail });
+    checks.push({ id: 'query-auth', label: 'Query authentication', status: connection.authenticated ? 'ok' : 'error', detail: connection.authenticated ? 'Authenticated API-key identity' : connection.detail });
+    checks.push({ id: 'query-permissions', label: 'Management permissions', status: connection.permissions ? 'ok' : 'warning', detail: connection.permissions ? 'Server listing and API-key management verified; individual actions still enforce their permissions' : connection.detail });
+    const compatibility = { version: connection.version, keepFilesFixed: keepFilesCompatibility(connection.version) };
+    checks.push({ id: 'snapshot-compatibility', label: 'Snapshot compatibility', status: compatibility.keepFilesFixed === true ? 'ok' : 'warning', detail: compatibility.keepFilesFixed === true ? 'Includes the beta13 keep-files restore fix' : compatibility.keepFilesFixed === false ? 'This TS6 version can hang when restoring a snapshot with Keep channel files. Update to beta13 or later before restoring.' : 'Version compatibility could not be established; verify before restoring snapshots.' });
     try {
       serverInfo = one(await client(req).execute(sid, 'serverinfo'));
       checks.push({ id: 'virtual-server', label: 'Virtual server', status: 'ok', detail: serverInfo?.virtualserver_status || 'Online' });
@@ -225,7 +228,7 @@ operationsRoutes.get('/health', async (req, res, next) => {
       const loss = Number(serverInfo.virtualserver_total_packetloss_total || 0);
       if (loss >= 0.05) alerts.push({ level: 'warning', message: `Packet loss is ${(loss * 100).toFixed(2)}%` });
     }
-    res.json({ checkedAt: new Date().toISOString(), checks, alerts });
+    res.json({ checkedAt: new Date().toISOString(), checks, alerts, compatibility });
   } catch (error) { next(error); }
 });
 

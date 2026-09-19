@@ -143,9 +143,10 @@ serverRoutes.post('/:configId/test', requireRole('admin'), async (req: Request, 
     if (!server) throw new AppError(404, 'Server config not found');
 
     const client = new WebQueryClient(server.host, server.webqueryPort, decrypt(server.apiKey), server.useHttps);
-    const ok = await client.testConnection();
-    client.destroy(); // Close the temporary TCP connection immediately
-
-    res.json({ success: ok });
+    try {
+      res.json(await client.inspectConnection());
+    } finally {
+      client.destroy();
+    }
   } catch (err) { next(err); }
 });

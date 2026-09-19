@@ -11,6 +11,11 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
+- TS6 beta13 compatibility: connection tests now distinguish reachability,
+  authenticated identity, and read-only probes of server-list/API-key-management
+  permissions. Settings respects a negative test result. Operations and the
+  restore dialog warn about keep-files snapshot restores before beta13 or when
+  version compatibility cannot be determined. No restore is performed by checks.
 - Channel banners fill a consistent left-aligned viewport at least as wide as
   the 40rem TS6 Narrow card. Images fill that viewport and remain visible on
   the left before transitioning through a deliberate black fade on the right.
