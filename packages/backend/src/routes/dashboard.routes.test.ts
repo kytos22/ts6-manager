@@ -29,7 +29,7 @@ beforeEach(async () => {
   app.locals.connectionPool = { getClient: () => ({ execute }) };
   app.use(authMiddleware);
   app.use('/servers/:configId/vs/:sid/dashboard', requireServerAccess(), dashboardRoutes);
-  await new Promise<void>(resolve => { server = app.listen(0, '127.0.0.1', resolve); });
+  await new Promise<void>((resolve, reject) => { server = app.listen(0, '127.0.0.1', error => error ? reject(error) : resolve()); });
   base = `http://127.0.0.1:${(server.address() as any).port}`;
 });
 afterEach(async () => { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); });
