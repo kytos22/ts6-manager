@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
 import type { ConnectionPool } from '../ts-client/connection-pool.js';
+import { MetricsReader, metricsPort, projectDashboard } from '../ts-client/prometheus.js';
 
 export const dashboardRoutes: Router = Router({ mergeParams: true });
+const metrics = new MetricsReader();
 
 const getClient = (req: Request) => {
   const pool: ConnectionPool = req.app.locals.connectionPool;
@@ -11,6 +13,18 @@ const getClient = (req: Request) => {
 dashboardRoutes.get('/', async (req: Request, res: Response, next) => {
   try {
     const sid = parseInt(String(req.params.sid));
+    const configId = Number(req.params.configId);
+    if (!Number.isInteger(sid) || sid <= 0) { res.status(400).json({ error: 'Invalid virtual server ID' }); return; }
+    const port = metricsPort(configId);
+    if (port !== null) {
+      try {
+        const server = await req.app.locals.prisma.tsServerConfig.findUnique({ where: { id: configId } });
+        if (!server?.enabled) throw new Error('Server disabled');
+        const scrape = await metrics.read(server.host, port);
+        res.json(projectDashboard(scrape, sid, req.user?.role === 'admin'));
+        return;
+      } catch { /* Query fallback; never present stale metrics as current. */ }
+    }
     const client = getClient(req);
 
     const [serverInfo, clientList, channelList, connectionInfo] = await Promise.all([
@@ -28,6 +42,8 @@ dashboardRoutes.get('/', async (req: Request, res: Response, next) => {
     const onlineClients = clients.filter((c: any) => String(c.client_type) === '0');
 
     res.json({
+      source: 'query', metricsStatus: port === null ? 'disabled' : 'unavailable',
+      sampledAt: new Date().toISOString(), status: info.virtualserver_status || 'online',
       serverName: info.virtualserver_name,
       platform: info.virtualserver_platform,
       version: info.virtualserver_version,

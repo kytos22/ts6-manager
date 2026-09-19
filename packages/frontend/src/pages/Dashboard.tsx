@@ -44,27 +44,30 @@ function StatsCard({ icon: Icon, label, value, sub, accentColor = 'text-primary'
 export default function Dashboard() {
   const { t } = useTranslation();
   const { selectedConfigId, selectedSid } = useServerStore();
-  const { data, isLoading, error } = useDashboard();
+  const { data, isLoading, error, dataUpdatedAt } = useDashboard();
   const isAdmin = useAuthStore((s) => s.isAdmin());
-  const [bandwidthHistory, setBandwidthHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<{ scope: string; points: any[] }>({ scope: '', points: [] });
+  const scope = `${selectedConfigId}:${selectedSid}:${data?.source}`;
+  const bandwidthHistory = history.scope === scope ? history.points : [];
+  const capacity = data?.maxClients > 0 ? Math.min(100, Math.max(0, data.onlineUsers / data.maxClients * 100)) : 0;
   const [showWidgets, setShowWidgets] = useState(false);
 
   // Build bandwidth history from periodic data
   useEffect(() => {
     if (data) {
-      setBandwidthHistory((prev) => {
+      setHistory((prev) => {
         const next = [
-          ...prev,
+          ...(prev.scope === scope ? prev.points : []),
           {
-            time: new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            time: new Date(data.sampledAt || dataUpdatedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             in: data.bandwidth.incoming,
             out: data.bandwidth.outgoing,
           },
         ];
-        return next.slice(-30); // Keep last 30 data points
+        return { scope, points: next.slice(-30) }; // Session history, never mixed between servers/sources.
       });
     }
-  }, [data]);
+  }, [data, dataUpdatedAt, scope]);
 
   if (!selectedConfigId || !selectedSid) {
     return (
@@ -94,7 +97,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-xl font-semibold">{data.serverName}</h1>
           <div className="flex items-center gap-2 mt-1">
-            <Badge variant="success" className="font-mono-data text-[10px]">{t('dashboard.online')}</Badge>
+            <Badge variant={data.status === 'online' ? 'success' : 'secondary'} className="font-mono-data text-[10px]">{data.status === 'online' ? t('dashboard.online') : data.status}</Badge>
             <span className="text-xs text-muted-foreground font-mono-data">{data.version} / {data.platform}</span>
           </div>
         </div>
@@ -112,6 +115,14 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" role="status">
+        <Badge variant={data.source === 'prometheus' ? 'success' : 'secondary'}>{data.source === 'prometheus' ? 'Prometheus' : 'ServerQuery'}</Badge>
+        <span>{data.metricsStatus === 'unavailable'
+          ? t('dashboard.metricsFallback', { defaultValue: 'Metrics unavailable: using ServerQuery.' })
+          : t('dashboard.metricsCadence', { defaultValue: 'Refreshes every 10 s while this dashboard is open.' })}</span>
+        <span>{data.sampledAt && new Date(data.sampledAt).toLocaleTimeString()}</span>
       </div>
 
       {/* Stats Grid */}
@@ -139,10 +150,35 @@ export default function Dashboard() {
           icon={Activity}
           label={t('dashboard.ping')}
           value={`${parseFloat(String(data.ping || 0)).toFixed(1)}ms`}
-          sub={t('dashboard.loss', { value: (parseFloat(String(data.packetloss || 0)) * 100).toFixed(2) })}
+          sub={(data.packetlossKind === 'speech' ? t('dashboard.voiceTraffic', { defaultValue: 'Voice' }) + ' · ' : '') + t('dashboard.loss', { value: (parseFloat(String(data.packetloss || 0)) * 100).toFixed(2) })}
           accentColor="text-amber-400"
         />
       </div>
+
+      {data.instance && (
+        <section className="space-y-3">
+          <p className="text-xs text-muted-foreground">{t('dashboard.instanceScope', { defaultValue: 'TS6 process · all virtual servers · administrators only' })}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatsCard icon={Activity} label="CPU" value={data.instance.cpuPercent === null ? '—' : `${data.instance.cpuPercent.toFixed(1)}%`}
+              sub={t('dashboard.cpuScope', { defaultValue: '100% = one CPU core; needs two samples' })} />
+            <StatsCard icon={Server} label={t('dashboard.processMemory', { defaultValue: 'Process memory' })}
+              value={data.instance.memoryBytes === null ? '—' : formatBytes(data.instance.memoryBytes)} sub="RSS" accentColor="text-violet-400" />
+            <StatsCard icon={Users} label={t('dashboard.querySessions', { defaultValue: 'Query sessions' })} value={data.instance.querySessions ?? '—'} />
+            <StatsCard icon={Clock} label={t('dashboard.licenseExpiry', { defaultValue: 'License expiry' })}
+              value={data.instance.licenseExpires > 0 ? new Date(data.instance.licenseExpires * 1000).toLocaleDateString() : '—'}
+              sub={data.instance.licenseValid === 1 ? t('dashboard.licenseValid', { defaultValue: 'Valid' }) : t('dashboard.licenseUnknown', { defaultValue: 'Check license status' })}
+              accentColor={data.instance.licenseValid === 1 ? 'text-emerald-400' : 'text-amber-400'} />
+          </div>
+        </section>
+      )}
+
+      {data.fileTransfer && (
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
+          <span>{t('dashboard.fileTransfer', { defaultValue: 'File transfer · 5 s average' })}</span>
+          <span>↓ {data.fileTransfer.incoming === null ? '—' : `${formatBytes(data.fileTransfer.incoming)}/s`}</span>
+          <span>↑ {data.fileTransfer.outgoing === null ? '—' : `${formatBytes(data.fileTransfer.outgoing)}/s`}</span>
+        </div>
+      )}
 
       {/* Bandwidth + Detail panels */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -215,11 +251,11 @@ export default function Dashboard() {
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-500"
-                  style={{ width: `${Math.min((data.onlineUsers / data.maxClients) * 100, 100)}%` }}
+                  style={{ width: `${capacity}%` }}
                 />
               </div>
               <p className="text-[10px] text-muted-foreground mt-1 font-mono-data">
-                {t('dashboard.utilized', { value: ((data.onlineUsers / data.maxClients) * 100).toFixed(1) })}
+                {t('dashboard.utilized', { value: capacity.toFixed(1) })}
               </p>
             </div>
 

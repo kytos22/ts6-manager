@@ -456,6 +456,17 @@
     "cancel": "Cancelar"
   },
   "dashboard": {
+    "metricsFallback": "Métricas no disponibles: usando ServerQuery.",
+    "metricsCadence": "Actualiza cada 10 s mientras este panel esté abierto.",
+    "voiceTraffic": "Voz",
+    "instanceScope": "Proceso TS6 · todos los servidores virtuales · solo administradores",
+    "cpuScope": "100% = un núcleo; necesita dos muestras",
+    "processMemory": "Memoria del proceso",
+    "querySessions": "Sesiones Query",
+    "licenseExpiry": "Caducidad de licencia",
+    "licenseValid": "Válida",
+    "licenseUnknown": "Revisar estado de licencia",
+    "fileTransfer": "Transferencia de archivos · media de 5 s",
     "noServerTitle": "Ningún servidor seleccionado",
     "noServerDescription": "Seleccione una conexión de servidor en el encabezado para ver el panel.",
     "connectionFailedTitle": "Error de conexión",

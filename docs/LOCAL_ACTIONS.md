@@ -11,6 +11,11 @@ that must be preserved when rebasing onto a future upstream release.
 
 ## Completed recently
 
+- Native Prometheus dashboard: private, opt-in and demand-driven TS6 metrics,
+  UID-scoped virtual-server figures, administrator-only process CPU/RSS/license,
+  explicit Query fallback, cache deduplication and per-server session graphs.
+  No metrics storage server, public port or background file scan is introduced.
+
 - TS6 beta13 compatibility: connection tests now distinguish reachability,
   authenticated identity, and read-only probes of server-list/API-key-management
   permissions. Settings respects a negative test result. Operations and the
